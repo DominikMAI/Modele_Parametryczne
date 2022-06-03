@@ -4,7 +4,7 @@
 **Łukasz**</br>
 - Imputacja </br>
 
-Dominik </br>
+**Dominik** </br>
 -scenariusz doboru zmiennych poprzez eliminacje i te inne itd.</br>
 
 **Piotr** </br>
