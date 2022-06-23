@@ -11,6 +11,7 @@ library("car") # funkcja vif()
 library("ggplot2") # wykresy - funkcja ggplot()
 library("lmtest") # testy diagnostyczne modeli lm
 
+library("PerformanceAnalytics")
 library("ggplot2") # wykresy - funkcja ggplot()
 library("pscl") #pseudo-R2 funkcja pR2()
 library("pROC") #funkcje roc, auc
@@ -21,10 +22,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Wstep
 to do list: \ 
- - interakcje
- - 
-
-
+ - interakcje -
+ - część samochodow moze byc w rzeczywistosci zarejestrowana na osoby starsze ale uzytkowana przez młodych - którzy powodują kolizje
+ -Jeszcze analizuje ale mysle, ze takie zalozenie ma sens, opieramy model na: dochodzie, fakcie bycia rodzicem, wieku i uprzednio otrzymanych punktach karnych. Pozostałe zmienne są pochodnymi tych cech.
+ 
+ 
 ### Wczytanie danych
 ```{r}
 dane <- read.csv("C:/Users/dominikm/Desktop/Modele_Parametryczne/dane/LR_dane_treningowe_testowe.csv")
@@ -43,23 +45,65 @@ dane$EDUCATION <- as.factor(dane$EDUCATION)
 dane$OCCUPATION <- as.factor(dane$OCCUPATION)
 dane$CLM_FREQ <- as.factor(dane$CLM_FREQ)
 dane$REVOKED <- as.factor(dane$REVOKED)
-dane$MVR_PTS <- as.factor(dane$MVR_PTS)
+#dane$MVR_PTS <- as.factor(dane$MVR_PTS)
 dane$URBANICITY <- as.factor(dane$URBANICITY)
 dane$RED_CAR <- as.factor(dane$RED_CAR)
 
-#Dopóki nie ma imputacji
-dane[is.na(dane)] <- -999
+dane$MVR_PTS_GRP <-0
+dane$MVR_PTS_GRP[dane$MVR_PTS < 6] <- 1
+dane$MVR_PTS_GRP[(dane$MVR_PTS > 5) & (dane$MVR_PTS < 11)] <- 2
+dane$MVR_PTS_GRP[dane$MVR_PTS > 10] <- 3
+dane$MVR_PTS_GRP <- as.factor(dane$MVR_PTS_GRP)
 
+
+##Ad. model 4 - Nisko-wykwalifikowani vs wysoko wykfalifikowani
+dane$OCCUPATION_GRP <- 0
+
+dane$OCCUPATION_GRP[(dane$OCCUPATION=="Blue Collar") | 
+                     (dane$OCCUPATION=="Home Maker") | 
+                     (dane$OCCUPATION=="Home Maker") | 
+                      (dane$OCCUPATION=="Student") ] <- 0
+
+dane$OCCUPATION_GRP[(dane$OCCUPATION=="Clerical") | 
+                    (dane$OCCUPATION=="Doctor") | 
+                    (dane$OCCUPATION=="Lawyer") | 
+                    (dane$OCCUPATION=="Manager") | 
+                    (dane$OCCUPATION=="Professional")] <- 1
+
+dane$OCCUPATION_GRP <- as.factor(dane$OCCUPATION_GRP)
+
+
+dane$AGE_tr <-(dane$AGE - median(dane$AGE))**2
+
+
+
+
+dane <- na.omit(dane)
 summary(dane)
 #
 #cdplot(dane$INCOME, dane$CLAIM_FLAG, xlab = "dochód", ylab = "zadowolenie")
 sapply(dane, typeof)
 ```
+
+
+### Weryfikacja współlniowości
+Weryfikacja współlino
+Zmienne porządkowe - Spearman rank correlation coefficient (ordinal variables)
+Nominalne - chi-square test (nominal variables)
+#WSPÓŁINIOWOŚĆ - OCCUPATION_GRP - INCOME ?
+
+```{r}
+# Zmienne ciągłe
+chart.Correlation(dane[,c('INCOME', 'HOME_VAL', 'CLM_AMT','OLDCLAIM', 'BLUEBOOK','CAR_AGE')], histogram=TRUE, pch=9)
+
+## Wspołliniowość zmiennych porzadkowych - rank spearman correlation
+cor.test(dane$INCOME, dane$MVR_PTS_GRP, method = 'spearman')
+```
+
 ### Podział na dwa zbiory - treningowy i uczący.
 Za pomocą generatora liczb w rozkładzie jednorodnym, losujemy 70% wszystkich rekordów tabeli i przypisujemy je do zestawu treningowe.
 Pozostałe 30% zostaje przypisanych do zestawu testowego, który posłuży do ewaluacji skuteczności naszego modelu.
 Po przeprowadzeniu podziału, weryfikujemy czy balans klas został zachowany w odniesieniu do oryginalnego zestawu danych.
-
 ```{r}
 # Losowanie na wczesnym etapie, Podział na 
 n <- nrow(dane)
@@ -74,29 +118,149 @@ table(dane_uczacy$CLAIM_FLAG) / nrow(dane_uczacy)
 ### Analiza danych pod kątem wystąpienia szkody / kolizji drogowej
 
 **Pierwsze wnioski i hipotezy:**
-- Zdecydowanie więcej wypadków powodują osoby niebędące rodzicami \
-- Mężczyzni częściej powodują wypadki (pytanie czy to istotna różnica) \
 - Zamożni rzadziej powodują wypadki, ale tylko do przedziału 22 018USD, dla kolejnych grup dochodowych liczba wypadkóW wzrasta \
+- Mężczyzni częściej powodują wypadki (pytanie czy to istotna różnica) \
+- Zdecydowanie więcej wypadków powodują osoby niebędące rodzicami \
+
 - Osoby będące w dolnych grupach wiekowych powodują więcej kolizji, ta tendencja spada wraz z wiekiem aż do grupy 48-55lat i następnie wzrasta w grupach \
+
 - Czy możemy sprawdzic czy największe prawdopodobieństwo wystąpeinia szkody zachodzi w przypadku podróży średnio-długich (45-60min) \
+
 - Osoby, które otrzymały w przeszłości punkty karne, zdecydowanie częściej są uczestnikami kolizji drogowych. \ 
+
 - Widoczna jest również zależność pomiędzy wiekiem samochodu a częstościa występowania zdarzenia,wraz z wiekiem samochodu, maleje szansa na udział kolizji drogowej. \ 
+
 - Studenci i osoby nisko wykwalifikowane rzadziej biorą udział w kolizjach drogowych, może podział na dwie grupy ?
+
+Zatem w procesie
+
+### Model 1 - Dochód
+W pierwszym modelu stawiamy hipotezę, że istnieje zależność pomiędzy wzrostem dochodu a liczba kolizji.
+```{r}
+m1 <- glm(CLAIM_FLAG~INCOME, data = dane_uczacy, family = binomial)
+summary(m1)
+```
+**Wniosek** <br/>
+Analizując parametr strukturalny $\beta_1$, wnioskujemy, że zachodzi odwrotna zależność pomiędzy dochodem a szansą wystąpienia kolizji(Destymulanta).
+
+
+### Model 2 -Płeć
+W drugim modelu stawiamy hipotezę, że istnieje zależność pomiędzy płcią a liczba kolizji.
+Czy 
+```{r}
+m2 <- glm(CLAIM_FLAG~INCOME+GENDER, data = dane_uczacy, family = binomial)
+summary(m2)
+```
+**Wniosek** <br/>
+Analizując parametr strukturalny $\beta_1$, wnioskujemy, że nie występuje istotna zależność pomiędzy płcią a szansą wystąpienia kolizji.
+Parametr strukturalny *GENDERM*  zweryfikowany testem Walda jest nieistotny statystycznie.
+
+### Model 3 - Rodzic
+W trzecim modelu stawiamy hipotezę, że istnieje zależność pomiędzy faktem bycia rodzicem liczba kolizji.
+Zmienna *PARENT1* jest zmienną dychotomicza, więc weryfikujemy tylko czy osoba jest rodzicem, czy też nie.<br/>
+
+```{r}
+m4 <- glm(CLAIM_FLAG~INCOME+PARENT1, data = dane_uczacy, family = binomial)
+summary(m4)
+```
+**Wniosek** <br/>
+Analizując parametr strukturalny $\beta_2$, wnioskujemy, że zachodzi odwrotna zależność pomiędzy faktem bycia rodzicem a szansą wystąpienia kolizji . <br/>
+Interpretacja $\beta_2$ - 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Model 4 - AGE
+W trzecim modelu stawiamy hipotezę, że istnieje zależność pomiędzy wiekiem a liczba kolizji.
+Zmienna *AGE* jest zmienną ilościową, jednak obserwujemy, że zarówno młodsi jak i starsi biorą udział w większej liczbie kolizji. 
+Jednak bierzemy pod uwagę, że część samochodow moze byc w rzeczywistosci zarejestrowana na osoby starsze ale uzytkowana przez młodych - którzy powodują kolizje <br/>
+Z tego powodu zmienną wiek przekształciliśmy $y'=(y-\overline{y})^2$.
+```{r}
+m4 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr, data = dane_uczacy, family = binomial)
+summary(m4)
+```
+**Wniosek** <br/>
+Analizując parametr strukturalny $\beta_2$, wnioskujemy, że zachodzi odwrotna zależność pomiędzy faktem bycia rodzicem a szansą wystąpienia kolizji . <br/>
+Interpretacja $\beta_2$ - 
+
+
+### Model 5 - occupation - [nie wejdzie do modelu, ale musze to udowodnic najpierw]
+W czwartym modelu stawiamy hipotezę, że istnieje zależność pomiędzy podejmowanym rodzajem zawodu a liczba kolizji.
+Zmienna *OCCUPATION_GRP* jest zmienną dychotomicza, więc weryfikujemy tylko czy osoba wykonuje zawód wymagający wysokich kwalifikacji, czy też nie.<br/>
+
+```{r}
+m4 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+OCCUPATION_GRP, data = dane_uczacy, family = binomial)
+summary(m4)
+```
+**Wniosek** <br/>
+Analizując parametr strukturalny $\beta_3$, wnioskujemy, że wystąpienie kolizji<br/>
 
 ### Model
 ```{r}
-
-m1 <- glm(CLAIM_FLAG~CAR_AGE+PARENT1+GENDER+AGE+MVR_PTS+BLUEBOOK+TRAVTIME+OCCUPATION, data = dane_uczacy, family = binomial)
-
-round(summary(m1)$coefficients, 2)
+m <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr, data = dane_uczacy, family = binomial)
+summary(m)$coefficients
 
 ```
+### Weryfikacja występowania interakcji
 
 
-
+### Ewalucja jakości modelu
+Istotność całego modelu weryfikuje się za pomocą **testu ilorazu wiarygodnodści**, którego hipotezy mają postać: <br/>
+$H_0 : β_1 = β_2 = ... = β_k = 0$ <br/>
+$H_1 :∃_{1j≤k≤j} ≤ β_{j} ≠ 0$ <br/>
+Hipoteza zerowa mówi, że wszystkie parametry przy zmiennych objaśniających są zerami, to znaczy prawdziwy jest jedynie model z wyrazem wolnym. 
 
 
 ### Ewaluacja zbiorcza - TO DO
+**Podstawowe miary oceny skutecznosci modelu regresji logistycznej**
+Skuteczność wyprowadzonych modeli zweryfikowano w oparciu o poniższe miary:
+$PP$ - wskazania prawdziwie pozytywne - poprawnie zaklasyfikowane z klasy pozytywnej (1) <br />
+$FP$ - wskazania fałszywie pozytywne - niepoprawnie sklasyfkowane wskazania z klasy pozytywnej <br />
+$FN$ - wskazania fałszywie negatywne - niepoprawnie wskazania klasy negatywnej <br/>
+$PN$ - wskazania prawdziwie negatywne - poprawne wskazania klasy negatywnej <br/>
+
+$Dokładność = \frac{PP+PN}{N}$ - Iloraz wskazań poprawnie sklasyfikowanych do wszystkich elementów. 
+Ze względu na to, że dokładność nie odzwierciedla dobrze skuteczności modelu z danymi niezbalansowanymi, wykorzystano również
+miary czułości i specyficzności.<br />
+Czułość $= \frac{PP}{PP+FN}$ - określa udział przypadków prawidłowo zaklasyfikowanych wśród wszystkich objętych przewidywaniem pozytywnym. </br>
+
+Specyficzność $= \frac{PN}{PN+FP}$
+<br />
+
+**Miary dopasowania R2** <br />
+Pseudo-$R^2$ McFaddena<br />
+Opiera się on na porównaniu modelu pełnego z modelem zredukowanym tylko dla wyrazu wolnego. Oblicza się go według wzoru: <br />
+$R^2 = 1 - \frac{\sum_i (y_i - \beta x_i)^2}{\sum_i (y_i - \bar y)^2}$ <br />
+W praktyce wartości $R^2$ McFaddena są niewielkie, bliższe 0 niż 1. 
+
+Pseudo-$R^2$ Maddala<br />
+
+
+
 ```{r}
 p<-0.5
 
@@ -126,19 +290,23 @@ miary_pred <- function(model, dane, Y, p = 0.5) {
 }
 
 
-wyniki_miary_pred <- rbind(model_logit = miary_pred(model = m1, dane = dane_testowy, Y = dane_testowy$CLAIM_FLAG, p))
+wyniki_miary_pred <- rbind(model_logit = miary_pred(model = m, dane = dane_testowy, Y = dane_testowy$CLAIM_FLAG, p))
 wyniki_miary_pred
 
 ###
-rocobj1 <- roc(m1$y, m1$fitted.values)
-rocobj1_t <- roc(dane_testowy$CLAIM_FLAG, predict(m1, dane_testowy, type = "response"))
+rocobj1 <- roc(m$y, m$fitted.values)
+rocobj1_t <- roc(dane_testowy$CLAIM_FLAG, predict(m, dane_testowy, type = "response"))
 
 ###
 plot(rocobj1, main = "krzywe ROC dla modelu logitowego", col="red")
 lines(rocobj1_t, col="blue")
 
 ```
+```{r}
 
-
-
+#tab <- table(obserwowane = dane['CLAIM_FLAG'], przewidywane = ifelse(predict(m, dane, type = "response") > p, 1, 0))
+#tab
+```
+**Reference** <br />
+**Wykorzystanie modeli logitowych w analizie czynników aktywności zawodowej ludności**, Dominik ŚLIWICKI, Marek RĘKLEWSKI, 2006
 
