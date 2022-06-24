@@ -29,7 +29,7 @@ to do list: \
  
 ### Wczytanie danych
 ```{r}
-dane <- read.csv("C:/Users/dominikm/Desktop/Modele_Parametryczne/dane/LR_dane_treningowe_testowe.csv")
+dane <- read.csv("C:/Users/dominikm/Desktop/Modele_Parametryczne_Projekt/Modele_Parametryczne/dane/LR_dane_treningowe_testowe.csv")
 #summary(df)
 ```
 
@@ -94,10 +94,10 @@ Nominalne - chi-square test (nominal variables)
 
 ```{r}
 # Zmienne ciągłe
-chart.Correlation(dane[,c('INCOME', 'HOME_VAL', 'CLM_AMT','OLDCLAIM', 'BLUEBOOK','CAR_AGE')], histogram=TRUE, pch=9)
+#chart.Correlation(dane[,c('INCOME', 'HOME_VAL', 'CLM_AMT','OLDCLAIM', 'BLUEBOOK','CAR_AGE')], histogram=TRUE, pch=9)
 
 ## Wspołliniowość zmiennych porzadkowych - rank spearman correlation
-cor.test(dane$INCOME, dane$MVR_PTS_GRP, method = 'spearman')
+#cor.test(dane$INCOME, dane$MVR_PTS_GRP, method = 'spearman')
 ```
 
 ### Podział na dwa zbiory - treningowy i uczący.
@@ -133,7 +133,20 @@ table(dane_uczacy$CLAIM_FLAG) / nrow(dane_uczacy)
 - Studenci i osoby nisko wykwalifikowane rzadziej biorą udział w kolizjach drogowych, może podział na dwie grupy ?
 
 Zatem w procesie
+#### Iteracyjne budowanie
 
+cols <- as.vector(colnames(dane_uczacy))
+
+for (c in cols[5:length(cols)]){
+  print(c)
+  m <- glm(as.formula(paste('CLAIM_FLAG', "~", c)), data = dane_uczacy, family = binomial)
+  
+  print(summary(m)$coefficients)
+  
+}
+
+
+#### Proces budowania kolejnych zmiennych
 ### Model 1 - Dochód
 W pierwszym modelu stawiamy hipotezę, że istnieje zależność pomiędzy wzrostem dochodu a liczba kolizji.
 ```{r}
