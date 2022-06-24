@@ -30,7 +30,7 @@ to do list: \
 ### Wczytanie danych
 ```{r}
 dane <- read.csv("C:/Users/dominikm/Desktop/Modele_Parametryczne_Projekt/Modele_Parametryczne/dane/LR_dane_treningowe_testowe.csv")
-#summary(df)
+summary(dane)
 ```
 
 ### Wstępne przetworzenie 
@@ -45,11 +45,11 @@ dane$EDUCATION <- as.factor(dane$EDUCATION)
 dane$OCCUPATION <- as.factor(dane$OCCUPATION)
 dane$CLM_FREQ <- as.factor(dane$CLM_FREQ)
 dane$REVOKED <- as.factor(dane$REVOKED)
-#dane$MVR_PTS <- as.factor(dane$MVR_PTS)
+
 dane$URBANICITY <- as.factor(dane$URBANICITY)
 dane$RED_CAR <- as.factor(dane$RED_CAR)
 
-dane$MVR_PTS_GRP <-0
+dane$MVR_PTS_GRP <- 0
 dane$MVR_PTS_GRP[dane$MVR_PTS < 6] <- 1
 dane$MVR_PTS_GRP[(dane$MVR_PTS > 5) & (dane$MVR_PTS < 11)] <- 2
 dane$MVR_PTS_GRP[dane$MVR_PTS > 10] <- 3
@@ -72,13 +72,13 @@ dane$OCCUPATION_GRP[(dane$OCCUPATION=="Clerical") |
 
 dane$OCCUPATION_GRP <- as.factor(dane$OCCUPATION_GRP)
 
-
+dane <- na.omit(dane)
 dane$AGE_tr <-(dane$AGE - median(dane$AGE))**2
 
 
 
 
-dane <- na.omit(dane)
+
 summary(dane)
 #
 #cdplot(dane$INCOME, dane$CLAIM_FLAG, xlab = "dochód", ylab = "zadowolenie")
@@ -137,17 +137,17 @@ Zatem w procesie
 #### Iteracyjne budowanie
 ```{r}
 #select_if(dane, is.numeric)
-cols <- as.vector(colnames(dane))
+cols <- as.vector(colnames(dane[,-c(26,23)]))
 
 istotne = list()
-for (c in cols[5:length(cols)]){
+for (c in cols[6:length(cols)]){
   #print(c)
   m <- glm(as.formula(paste('CLAIM_FLAG', "~", c)), data = dane_uczacy, family = binomial)
   
   w_test <- waldtest(m)
   
   if (w_test$`Pr(>F)`[2] < 0.05){
-      print(paste('istotna',c ,'pvalue:', round(w_test$`Pr(>F)`[2], 6) ))
+      print(paste('istotna',c ,'pvalue:', format(w_test$`Pr(>F)`[2], 15), scientific = TRUE)[1])  
       #istotne <- append(istotne, c)
   } else{
       print(paste('nieistotna',c,'pvalue:', round(w_test$`Pr(>F)`[2], 2) ))
