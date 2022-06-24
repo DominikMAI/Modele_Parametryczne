@@ -133,17 +133,29 @@ table(dane_uczacy$CLAIM_FLAG) / nrow(dane_uczacy)
 - Studenci i osoby nisko wykwalifikowane rzadziej biorą udział w kolizjach drogowych, może podział na dwie grupy ?
 
 Zatem w procesie
+
 #### Iteracyjne budowanie
+```{r}
+#select_if(dane, is.numeric)
+cols <- as.vector(colnames(dane))
 
-cols <- as.vector(colnames(dane_uczacy))
-
+istotne = list()
 for (c in cols[5:length(cols)]){
-  print(c)
+  #print(c)
   m <- glm(as.formula(paste('CLAIM_FLAG', "~", c)), data = dane_uczacy, family = binomial)
   
-  print(summary(m)$coefficients)
+  w_test <- waldtest(m)
   
+  if (w_test$`Pr(>F)`[2] < 0.05){
+      print(paste('istotna',c ,'pvalue:', round(w_test$`Pr(>F)`[2], 6) ))
+      #istotne <- append(istotne, c)
+  } else{
+      print(paste('nieistotna',c,'pvalue:', round(w_test$`Pr(>F)`[2], 2) ))
+      #print(summary(m)$coefficients)
+  }
 }
+```
+W iteracyjnej weryfikacji istotności zmiennych, mające wpływ na na liczbę kolizji okazały sie:`istotne`
 
 
 #### Proces budowania kolejnych zmiennych
