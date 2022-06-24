@@ -94,7 +94,8 @@ Nominalne - chi-square test (nominal variables)
 
 ```{r}
 # Zmienne ciągłe
-#chart.Correlation(dane[,c('INCOME', 'HOME_VAL', 'CLM_AMT','OLDCLAIM', 'BLUEBOOK','CAR_AGE')], histogram=TRUE, pch=9)
+
+chart.Correlation(dane[,c('INCOME', 'HOME_VAL', 'CLM_AMT','OLDCLAIM', 'BLUEBOOK','CAR_AGE')], histogram=TRUE, pch=9)
 
 ## Wspołliniowość zmiennych porzadkowych - rank spearman correlation
 #cor.test(dane$INCOME, dane$MVR_PTS_GRP, method = 'spearman')
