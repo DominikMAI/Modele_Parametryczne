@@ -163,7 +163,7 @@ for (c in cols[6:length(cols)]){
 ```
 W iteracyjnej weryfikacji istotności zmiennych, większość zmiennych okazała się istotna.
 Wśród cech nie mających wpływu na wystąpienie kolizji wyróżniamy płeć, kolor czerwony samochodu, wartość szkody.
-Pozostałe (istotne) zmienne posłużą w budowaniu modelu. Wśród kryterióW jakości modelu, cechy dobierane są w oparciu o dostępną wiedzę i doświadczenie. <br />
+Pozostałe (istotne) zmienne posłużą w budowaniu modelu. Oprócz kryterióW jakości modelu, cechy dobierane są w oparciu o dostępną wiedzę i doświadczenie. <br />
 
 
 #### Proces budowania kolejnych zmiennych
@@ -172,7 +172,6 @@ W pierwszym modelu stawiamy hipotezę, że istnieje zależność pomiędzy wzros
 ```{r}
 m1 <- glm(CLAIM_FLAG~INCOME, data = dane_uczacy, family = binomial)
 summary(m1)
-
 ```
 **Wniosek** <br/>
 Analizując parametr strukturalny $\beta_1$, wnioskujemy, że zachodzi odwrotna zależność pomiędzy dochodem a szansą wystąpienia kolizji(Destymulanta).
@@ -242,7 +241,7 @@ summary(m6)
 Analizując parametr strukturalny $\beta_6$, wnioskujemy, że nie zachodzi istotna zależność pomiędzy faktem bycią małżonkiem a szansą wystąpienia kolizji.<br/>
 
 
-### Model 7 - 
+### Model 7 - UŻYTKOWANIE SAMOCHODU
 W piątym modelu stawiamy hipotezę, że istnieje zależność pomiędzy faktem bycia małżenstwie a szansą zaistnienia kolizji.
 Zmienna **CAR_USE** jest zmienną dychotomiczną.
 
@@ -254,12 +253,47 @@ summary(m7)
 summary(m5)$aic - summary(m7)$aic
 ```
 **Wniosek**
+Zmienna MSTATUS powoduje utrate istotnosci wyrazu wolnego.
+Zmienna MSTATUS nie zostaje włączona do modelu
+
+### Model 8 - Cena samochodu
+```{r}
+m8 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+BLUEBOOK, data = dane_uczacy, family = binomial)
+summary(m8)
+```
+**Wniosek**
+Zmienna BlueBook pogarsza nasz model podwyyższajac wartość kryterium informacyjnego Akaike.
+Zmienna bluebook nie zostaje włączona do modelu.
+
+
+### Model 9 - Liczba lat jako klient
+
+```{r}
+m8 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+TIF, data = dane_uczacy, family = binomial)
+summary(m8)
+```
+**Wniosek**
+Zmienna TIF pogarsza nasz model podwyyższajac wartość kryterium informacyjnego Akaike.
+Zmienna TIF nie zostaje włączona do modelu, na podstawie dedukcji.
+
+
+### Model 10 - Liczba lat jako klient
+
+```{r}
+m8 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_TYPE, data = dane_uczacy, family = binomial)
+summary(m8)
+```
+**Wniosek**
+NO i nie wiem
+
+
+
 
 [1] "istotna TRAVTIME pvalue: 5.425129e-07"
-[1] "istotna CAR_USE pvalue: 5.353845e-28"
-[1] "istotna BLUEBOOK pvalue: 2.554077e-14"
-[1] "istotna TIF pvalue: 3.066795e-09"
-[1] "istotna CAR_TYPE pvalue: 4.643908e-20"
+#[1] "istotna CAR_USE pvalue: 5.353845e-28"
+#[1] "istotna BLUEBOOK pvalue: 2.554077e-14"
+#[1] "istotna TIF pvalue: 3.066795e-09" - 
+[1] "istotna CAR_TYPE pvalue: 4.643908e-20" - BEZ SENSU
 [1] "nieistotna RED_CAR pvalue: 0.48"
 [1] "istotna OLDCLAIM pvalue: 4.806921e-23"
 [1] "istotna CLM_FREQ pvalue: 4.713843e-78"
