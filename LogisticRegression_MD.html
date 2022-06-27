@@ -60,6 +60,7 @@ if (window.hljs) {
 
 
 
+
 <style type="text/css">
 .main-container {
   max-width: 940px;
@@ -80,6 +81,9 @@ button.code-folding-btn:focus {
 }
 summary {
   display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
 }
 pre code {
   padding: 0;
@@ -173,86 +177,143 @@ pre code {
 <p>to do list:   - interakcje - - część samochodow moze byc w rzeczywistosci zarejestrowana na osoby starsze ale uzytkowana przez młodych - którzy powodują kolizje -Jeszcze analizuje ale mysle, ze takie zalozenie ma sens, opieramy model na: dochodzie, fakcie bycia rodzicem, wieku i uprzednio otrzymanych punktach karnych. Pozostałe zmienne są pochodnymi tych cech.</p>
 <div id="wczytanie-danych" class="section level3">
 <h3>Wczytanie danych</h3>
-<pre class="r"><code>dane &lt;- read.csv(&quot;C:/Users/dominikm/Desktop/Modele_Parametryczne_Projekt/Modele_Parametryczne/dane/LR_dane_treningowe_testowe.csv&quot;)
-#summary(df)</code></pre>
+<pre class="r"><code>dane &lt;- read.csv(&quot;./dane/LR_dane_treningowe_testowe.csv&quot;)
+summary(dane)</code></pre>
+<pre><code>##        X               ID               KIDSDRIV           AGE       
+##  Min.   :    0   Min.   :    63175   Min.   :0.0000   Min.   :16.00  
+##  1st Qu.: 2575   1st Qu.:244286856   1st Qu.:0.0000   1st Qu.:39.00  
+##  Median : 5150   Median :497004293   Median :0.0000   Median :45.00  
+##  Mean   : 5150   Mean   :495663109   Mean   :0.1693   Mean   :44.84  
+##  3rd Qu.: 7726   3rd Qu.:739455069   3rd Qu.:0.0000   3rd Qu.:51.00  
+##  Max.   :10301   Max.   :999926368   Max.   :4.0000   Max.   :81.00  
+##                                                       NA&#39;s   :7      
+##     HOMEKIDS           YOJ            INCOME         PARENT1         
+##  Min.   :0.0000   Min.   : 0.00   Min.   :     0   Length:10302      
+##  1st Qu.:0.0000   1st Qu.: 9.00   1st Qu.: 27584   Class :character  
+##  Median :0.0000   Median :11.00   Median : 53529   Mode  :character  
+##  Mean   :0.7204   Mean   :10.47   Mean   : 61572                     
+##  3rd Qu.:1.0000   3rd Qu.:13.00   3rd Qu.: 86166                     
+##  Max.   :5.0000   Max.   :23.00   Max.   :367030                     
+##                   NA&#39;s   :548     NA&#39;s   :570                        
+##     HOME_VAL        MSTATUS             GENDER           EDUCATION        
+##  Min.   :     0   Length:10302       Length:10302       Length:10302      
+##  1st Qu.:     0   Class :character   Class :character   Class :character  
+##  Median :160661   Mode  :character   Mode  :character   Mode  :character  
+##  Mean   :154523                                                           
+##  3rd Qu.:238256                                                           
+##  Max.   :885282                                                           
+##  NA&#39;s   :575                                                              
+##   OCCUPATION           TRAVTIME        CAR_USE             BLUEBOOK    
+##  Length:10302       Min.   :  5.00   Length:10302       Min.   : 1500  
+##  Class :character   1st Qu.: 22.00   Class :character   1st Qu.: 9200  
+##  Mode  :character   Median : 33.00   Mode  :character   Median :14400  
+##                     Mean   : 33.42                      Mean   :15660  
+##                     3rd Qu.: 44.00                      3rd Qu.:20890  
+##                     Max.   :142.00                      Max.   :69740  
+##                                                                        
+##       TIF           CAR_TYPE           RED_CAR             OLDCLAIM    
+##  Min.   : 1.000   Length:10302       Length:10302       Min.   :    0  
+##  1st Qu.: 1.000   Class :character   Class :character   1st Qu.:    0  
+##  Median : 4.000   Mode  :character   Mode  :character   Median :    0  
+##  Mean   : 5.329                                         Mean   : 4034  
+##  3rd Qu.: 7.000                                         3rd Qu.: 4648  
+##  Max.   :25.000                                         Max.   :57037  
+##                                                                        
+##     CLM_FREQ        REVOKED             MVR_PTS         CLM_AMT      
+##  Min.   :0.0000   Length:10302       Min.   : 0.00   Min.   :     0  
+##  1st Qu.:0.0000   Class :character   1st Qu.: 0.00   1st Qu.:     0  
+##  Median :0.0000   Mode  :character   Median : 1.00   Median :     0  
+##  Mean   :0.8007                      Mean   : 1.71   Mean   :  1511  
+##  3rd Qu.:2.0000                      3rd Qu.: 3.00   3rd Qu.:  1145  
+##  Max.   :5.0000                      Max.   :13.00   Max.   :123247  
+##                                                                      
+##     CAR_AGE        CLAIM_FLAG         URBANICITY       
+##  Min.   : 0.000   Length:10302       Length:10302      
+##  1st Qu.: 1.000   Class :character   Class :character  
+##  Median : 8.000   Mode  :character   Mode  :character  
+##  Mean   : 8.299                                        
+##  3rd Qu.:12.000                                        
+##  Max.   :28.000                                        
+##  NA&#39;s   :639</code></pre>
 </div>
 <div id="wstępne-przetworzenie" class="section level3">
 <h3>Wstępne przetworzenie</h3>
-<pre><code>##        X               ID            KIDSDRIV    BIRTH          
-##  Min.   :    0   Min.   :    63175   0:9066   Length:10298      
-##  1st Qu.: 2575   1st Qu.:244094212   1: 804   Class :character  
-##  Median : 5150   Median :496949328   2: 350   Mode  :character  
-##  Mean   : 5150   Mean   :495587526   3:  74                     
-##  3rd Qu.: 7725   3rd Qu.:739230069   4:   4                     
-##  Max.   :10301   Max.   :999926368                              
-##                                                                 
-##       AGE         HOMEKIDS      YOJ              INCOME       PARENT1 
-##  Min.   :-99.00   0:6694   Min.   :-99.000   Min.   :-99.00   0:8955  
-##  1st Qu.: 39.00   1:1105   1st Qu.:  8.000   1st Qu.: 23.20   1:1343  
-##  Median : 45.00   2:1425   Median : 11.000   Median : 51.11           
-##  Mean   : 44.74   3: 855   Mean   :  4.648   Mean   : 54.89           
-##  3rd Qu.: 51.00   4: 201   3rd Qu.: 13.000   3rd Qu.: 84.04           
-##  Max.   : 81.00   5:  18   Max.   : 23.000   Max.   :997.00           
-##                                                                       
-##     HOME_VAL     MSTATUS  GENDER           EDUCATION            OCCUPATION  
-##  Min.   :-99.0   0:4114   0:5544   &lt;High School :1515   z_Blue Collar:2288  
-##  1st Qu.:  0.0   1:6184   1:4754   Bachelors    :2822   Clerical     :1589  
-##  Median :151.3                     Masters      :2077   Professional :1407  
-##  Mean   :140.4                     PhD          : 933   Manager      :1256  
-##  3rd Qu.:233.1                     z_High School:2951   Lawyer       :1031  
-##  Max.   :885.3                                          Student      : 899  
-##                                                         (Other)      :1828  
-##     TRAVTIME         CAR_USE          BLUEBOOK          TIF        
-##  Min.   :  5.00   Min.   :0.0000   Min.   : 1.50   Min.   : 1.000  
-##  1st Qu.: 22.00   1st Qu.:0.0000   1st Qu.: 9.20   1st Qu.: 1.000  
-##  Median : 33.00   Median :1.0000   Median :14.40   Median : 4.000  
-##  Mean   : 33.42   Mean   :0.6321   Mean   :15.66   Mean   : 5.328  
-##  3rd Qu.: 44.00   3rd Qu.:1.0000   3rd Qu.:20.89   3rd Qu.: 7.000  
-##  Max.   :142.00   Max.   :1.0000   Max.   :69.74   Max.   :25.000  
+<pre><code>##        X               ID            KIDSDRIV      AGE       HOMEKIDS
+##  Min.   :    0   Min.   :   401276   0:7193   Min.   :16.0   0:5292  
+##  1st Qu.: 2493   1st Qu.:248835242   1: 635   1st Qu.:39.0   1: 883  
+##  Median : 5064   Median :496124894   2: 272   Median :45.0   2:1122  
+##  Mean   : 5086   Mean   :496377232   3:  61   Mean   :44.8   3: 689  
+##  3rd Qu.: 7652   3rd Qu.:738929828   4:   2   3rd Qu.:51.0   4: 163  
+##  Max.   :10301   Max.   :999926368            Max.   :81.0   5:  14  
+##                                                                      
+##       YOJ           INCOME        PARENT1        HOME_VAL       MSTATUS    
+##  Min.   : 0.0   Min.   :     0   False:7091   Min.   :     0   False:3298  
+##  1st Qu.: 9.0   1st Qu.: 27803   True :1072   1st Qu.:     0   True :4865  
+##  Median :11.0   Median : 53594                Median :161166               
+##  Mean   :10.5   Mean   : 61585                Mean   :154839               
+##  3rd Qu.:13.0   3rd Qu.: 86230                3rd Qu.:239278               
+##  Max.   :23.0   Max.   :367030                Max.   :885282               
+##                                                                            
+##  GENDER          EDUCATION           OCCUPATION      TRAVTIME     
+##  F:4392   &lt;High School:1191   Blue Collar :1853   Min.   :  5.00  
+##  M:3771   Bachelors   :2220   Clerical    :1286   1st Qu.: 23.00  
+##           High School :2385   Professional:1096   Median : 33.00  
+##           Masters     :1637   Manager     :1002   Mean   : 33.59  
+##           PhD         : 730   Lawyer      : 826   3rd Qu.: 44.00  
+##                               Student     : 688   Max.   :142.00  
+##                               (Other)     :1412                   
+##    CAR_USE             BLUEBOOK          TIF           CAR_TYPE        
+##  Length:8163        Min.   : 1500   Min.   : 1.000   Length:8163       
+##  Class :character   1st Qu.: 9240   1st Qu.: 1.000   Class :character  
+##  Mode  :character   Median :14420   Median : 4.000   Mode  :character  
+##                     Mean   :15684   Mean   : 5.361                     
+##                     3rd Qu.:20840   3rd Qu.: 7.000                     
+##                     Max.   :69740   Max.   :25.000                     
+##                                                                        
+##   RED_CAR        OLDCLAIM     CLM_FREQ  REVOKED        MVR_PTS     
+##  False:5803   Min.   :    0   0:4996   False:7150   Min.   : 0.00  
+##  True :2360   1st Qu.:    0   1: 994   True :1013   1st Qu.: 0.00  
+##               Median :    0   2:1179                Median : 1.00  
+##               Mean   : 4065   3: 792                Mean   : 1.72  
+##               3rd Qu.: 4650   4: 185                3rd Qu.: 3.00  
+##               Max.   :57037   5:  17                Max.   :13.00  
 ##                                                                    
-##     CAR_TYPE     RED_CAR     OLDCLAIM       CLM_FREQ REVOKED     MVR_PTS     
-##  Min.   :1.000   0:7323   Min.   :  0.000   0:6291   0:9039   Min.   : 0.00  
-##  1st Qu.:1.000   1:2975   1st Qu.:  0.000   1:1278   1:1259   1st Qu.: 0.00  
-##  Median :3.000            Median :  0.000   2:1490            Median : 1.00  
-##  Mean   :3.184            Mean   : 13.675   3: 992            Mean   : 1.71  
-##  3rd Qu.:5.000            3rd Qu.:  4.938   4: 225            3rd Qu.: 3.00  
-##  Max.   :6.000            Max.   :999.000   5:  22            Max.   :13.00  
-##                                                                              
-##     CLM_AMT           CAR_AGE        CLAIM_FLAG URBANICITY   AGE_GROUP    
-##  Min.   :  0.000   Min.   :-99.000   0:7553     0:2071     Min.   :0.000  
-##  1st Qu.:  0.000   1st Qu.:  1.000   1:2745     1:8227     1st Qu.:3.000  
-##  Median :  0.000   Median :  8.000                         Median :3.000  
-##  Mean   :  9.788   Mean   :  1.643                         Mean   :3.332  
-##  3rd Qu.:  1.501   3rd Qu.: 12.000                         3rd Qu.:4.000  
-##  Max.   :991.000   Max.   : 28.000                         Max.   :7.000  
-##                                                                           
-##  MVR_PTS_GRP OCCUPATION_GRP     AGE_tr        
-##  1:9542      0:4695         Min.   :    0.00  
-##  2: 740      1:5603         1st Qu.:    9.00  
-##  3:  16                     Median :   36.00  
-##                             Mean   :   88.12  
-##                             3rd Qu.:  100.00  
-##                             Max.   :20736.00  
+##     CLM_AMT         CAR_AGE       CLAIM_FLAG                 URBANICITY  
+##  Min.   :    0   Min.   : 0.000   False:5974   Highly Rural/ Rural:1636  
+##  1st Qu.:    0   1st Qu.: 1.000   True :2189   Highly Urban/ Urban:6527  
+##  Median :    0   Median : 8.000                                          
+##  Mean   : 1494   Mean   : 8.265                                          
+##  3rd Qu.: 1158   3rd Qu.:12.000                                          
+##  Max.   :85524   Max.   :28.000                                          
+##                                                                          
+##  MVR_PTS_GRP OCCUPATION_GRP     AGE_tr        HOME_VAL_D
+##  1:7553      0:3694         Min.   :   0.00   0:2447    
+##  2: 595      1:4469         1st Qu.:   9.00   1:5716    
+##  3:  15                     Median :  36.00             
+##                             Mean   :  74.96             
+##                             3rd Qu.: 100.00             
+##                             Max.   :1296.00             
 ## </code></pre>
-<pre><code>##              X             ID       KIDSDRIV          BIRTH            AGE 
-##      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot;    &quot;character&quot;       &quot;double&quot; 
-##       HOMEKIDS            YOJ         INCOME        PARENT1       HOME_VAL 
-##      &quot;integer&quot;       &quot;double&quot;       &quot;double&quot;      &quot;integer&quot;       &quot;double&quot; 
-##        MSTATUS         GENDER      EDUCATION     OCCUPATION       TRAVTIME 
-##      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot; 
-##        CAR_USE       BLUEBOOK            TIF       CAR_TYPE        RED_CAR 
-##      &quot;integer&quot;       &quot;double&quot;      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot; 
-##       OLDCLAIM       CLM_FREQ        REVOKED        MVR_PTS        CLM_AMT 
-##       &quot;double&quot;      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot;       &quot;double&quot; 
-##        CAR_AGE     CLAIM_FLAG     URBANICITY      AGE_GROUP    MVR_PTS_GRP 
-##       &quot;double&quot;      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot; 
-## OCCUPATION_GRP         AGE_tr 
-##      &quot;integer&quot;       &quot;double&quot;</code></pre>
+<pre><code>##              X             ID       KIDSDRIV            AGE       HOMEKIDS 
+##      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot;       &quot;double&quot;      &quot;integer&quot; 
+##            YOJ         INCOME        PARENT1       HOME_VAL        MSTATUS 
+##       &quot;double&quot;       &quot;double&quot;      &quot;integer&quot;       &quot;double&quot;      &quot;integer&quot; 
+##         GENDER      EDUCATION     OCCUPATION       TRAVTIME        CAR_USE 
+##      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot;    &quot;character&quot; 
+##       BLUEBOOK            TIF       CAR_TYPE        RED_CAR       OLDCLAIM 
+##       &quot;double&quot;      &quot;integer&quot;    &quot;character&quot;      &quot;integer&quot;       &quot;double&quot; 
+##       CLM_FREQ        REVOKED        MVR_PTS        CLM_AMT        CAR_AGE 
+##      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot;       &quot;double&quot;       &quot;double&quot; 
+##     CLAIM_FLAG     URBANICITY    MVR_PTS_GRP OCCUPATION_GRP         AGE_tr 
+##      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot;      &quot;integer&quot;       &quot;double&quot; 
+##     HOME_VAL_D 
+##      &quot;integer&quot;</code></pre>
 </div>
 <div id="weryfikacja-współlniowości" class="section level3">
 <h3>Weryfikacja współlniowości</h3>
 <p>Weryfikacja współlino Zmienne porządkowe - Spearman rank correlation coefficient (ordinal variables) Nominalne - chi-square test (nominal variables) #WSPÓŁINIOWOŚĆ - OCCUPATION_GRP - INCOME ?</p>
 <pre class="r"><code># Zmienne ciągłe
+
 #chart.Correlation(dane[,c(&#39;INCOME&#39;, &#39;HOME_VAL&#39;, &#39;CLM_AMT&#39;,&#39;OLDCLAIM&#39;, &#39;BLUEBOOK&#39;,&#39;CAR_AGE&#39;)], histogram=TRUE, pch=9)
 
 ## Wspołliniowość zmiennych porzadkowych - rank spearman correlation
@@ -270,12 +331,12 @@ dane_testowy &lt;- dane[-liczby_losowe,]
 # Przeliczenie 
 table(dane_testowy$CLAIM_FLAG) / nrow(dane_testowy)</code></pre>
 <pre><code>## 
-##         0         1 
-## 0.7309809 0.2690191</code></pre>
+##     False      True 
+## 0.7382605 0.2617395</code></pre>
 <pre class="r"><code>table(dane_uczacy$CLAIM_FLAG) / nrow(dane_uczacy)</code></pre>
 <pre><code>## 
-##         0         1 
-## 0.7344985 0.2655015</code></pre>
+##     False      True 
+## 0.7290865 0.2709135</code></pre>
 </div>
 <div id="analiza-danych-pod-kątem-wystąpienia-szkody-kolizji-drogowej" class="section level3">
 <h3>Analiza danych pod kątem wystąpienia szkody / kolizji drogowej</h3>
@@ -293,9 +354,60 @@ table(dane_testowy$CLAIM_FLAG) / nrow(dane_testowy)</code></pre>
 <li><p>Studenci i osoby nisko wykwalifikowane rzadziej biorą udział w kolizjach drogowych, może podział na dwie grupy ?</p></li>
 </ul>
 <p>Zatem w procesie</p>
+<div id="iteracyjne-budowanie" class="section level4">
+<h4>Iteracyjne budowanie</h4>
+<pre class="r"><code>#select_if(dane, is.numeric)
+cols &lt;- as.vector(colnames(dane[,-c(26,23)]))
+
+istotne = list()
+for (c in cols[6:length(cols)]){
+  #print(c)
+  m &lt;- glm(as.formula(paste(&#39;CLAIM_FLAG&#39;, &quot;~&quot;, c)), data = dane_uczacy, family = binomial)
+  
+  w_test &lt;- waldtest(m)
+  
+  if (w_test$`Pr(&gt;F)`[2] &lt; 0.05){
+      print(paste(&#39;istotna&#39;,c ,&#39;pvalue:&#39;, format(w_test$`Pr(&gt;F)`[2],  scientific = TRUE))[1])  
+      #istotne &lt;- append(istotne, c)
+  } else{
+      print(paste(&#39;nieistotna&#39;,c,&#39;pvalue:&#39;, round(w_test$`Pr(&gt;F)`[2], 2) ))
+      #print(summary(m)$coefficients)
+  }
+}</code></pre>
+<pre><code>## [1] &quot;istotna YOJ pvalue: 6.664741e-06&quot;
+## [1] &quot;istotna INCOME pvalue: 7.25886e-27&quot;
+## [1] &quot;istotna PARENT1 pvalue: 9.705684e-34&quot;
+## [1] &quot;istotna HOME_VAL pvalue: 4.816761e-44&quot;
+## [1] &quot;istotna MSTATUS pvalue: 1.941711e-19&quot;
+## [1] &quot;nieistotna GENDER pvalue: 0.22&quot;
+## [1] &quot;istotna EDUCATION pvalue: 2.679729e-29&quot;
+## [1] &quot;istotna OCCUPATION pvalue: 1.087315e-40&quot;
+## [1] &quot;istotna TRAVTIME pvalue: 5.425129e-07&quot;
+## [1] &quot;istotna CAR_USE pvalue: 5.353845e-28&quot;
+## [1] &quot;istotna BLUEBOOK pvalue: 2.554077e-14&quot;
+## [1] &quot;istotna TIF pvalue: 3.066795e-09&quot;
+## [1] &quot;istotna CAR_TYPE pvalue: 4.643908e-20&quot;
+## [1] &quot;nieistotna RED_CAR pvalue: 0.48&quot;
+## [1] &quot;istotna OLDCLAIM pvalue: 4.806921e-23&quot;
+## [1] &quot;istotna CLM_FREQ pvalue: 4.713843e-78&quot;
+## [1] &quot;istotna REVOKED pvalue: 1.327e-28&quot;</code></pre>
+<pre><code>## Warning: glm.fit: algorithm did not converge</code></pre>
+<pre><code>## Warning: glm.fit: fitted probabilities numerically 0 or 1 occurred</code></pre>
+<pre><code>## [1] &quot;nieistotna CLM_AMT pvalue: 0.99&quot;
+## [1] &quot;istotna CAR_AGE pvalue: 1.231955e-18&quot;
+## [1] &quot;istotna URBANICITY pvalue: 5.618925e-54&quot;
+## [1] &quot;istotna MVR_PTS_GRP pvalue: 5.363152e-32&quot;
+## [1] &quot;istotna OCCUPATION_GRP pvalue: 3.650535e-22&quot;
+## [1] &quot;istotna AGE_tr pvalue: 3.091067e-19&quot;
+## [1] &quot;istotna HOME_VAL_D pvalue: 3.678084e-30&quot;</code></pre>
+<p>W iteracyjnej weryfikacji istotności zmiennych, większość zmiennych okazała się istotna. Wśród cech nie mających wpływu na wystąpienie kolizji wyróżniamy płeć, kolor czerwony samochodu, wartość szkody. Pozostałe (istotne) zmienne posłużą w budowaniu modelu. Oprócz kryterióW jakości modelu, cechy dobierane są w oparciu o dostępną wiedzę i doświadczenie. <br /></p>
+</div>
+<div id="proces-budowania-kolejnych-zmiennych" class="section level4">
+<h4>Proces budowania kolejnych zmiennych</h4>
+</div>
 </div>
 <div id="model-1---dochód" class="section level3">
-<h3>Model 1 - Dochód</h3>
+<h3>Model 1 - dochód</h3>
 <p>W pierwszym modelu stawiamy hipotezę, że istnieje zależność pomiędzy wzrostem dochodu a liczba kolizji.</p>
 <pre class="r"><code>m1 &lt;- glm(CLAIM_FLAG~INCOME, data = dane_uczacy, family = binomial)
 summary(m1)</code></pre>
@@ -305,60 +417,59 @@ summary(m1)</code></pre>
 ## 
 ## Deviance Residuals: 
 ##     Min       1Q   Median       3Q      Max  
-## -0.9770  -0.8028  -0.7549   1.5468   2.8334  
+## -0.9571  -0.8406  -0.7335   1.4150   2.4816  
 ## 
 ## Coefficients:
 ##               Estimate Std. Error z value Pr(&gt;|z|)    
-## (Intercept) -0.8363313  0.0344565 -24.272  &lt; 2e-16 ***
-## INCOME      -0.0034834  0.0004442  -7.842 4.45e-15 ***
+## (Intercept) -5.431e-01  4.899e-02  -11.09   &lt;2e-16 ***
+## INCOME      -7.775e-06  7.208e-07  -10.79   &lt;2e-16 ***
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 ## 
 ## (Dispersion parameter for binomial family taken to be 1)
 ## 
-##     Null deviance: 8344.2  on 7208  degrees of freedom
-## Residual deviance: 8278.3  on 7207  degrees of freedom
-## AIC: 8282.3
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 6547.6  on 5712  degrees of freedom
+## AIC: 6551.6
 ## 
 ## Number of Fisher Scoring iterations: 4</code></pre>
 <p><strong>Wniosek</strong> <br /> Analizując parametr strukturalny <span class="math inline">\(\beta_1\)</span>, wnioskujemy, że zachodzi odwrotna zależność pomiędzy dochodem a szansą wystąpienia kolizji(Destymulanta).</p>
 </div>
-<div id="model-2--płeć" class="section level3">
-<h3>Model 2 -Płeć</h3>
-<p>W drugim modelu stawiamy hipotezę, że istnieje zależność pomiędzy płcią a liczba kolizji. Czy</p>
-<pre class="r"><code>m2 &lt;- glm(CLAIM_FLAG~INCOME+GENDER, data = dane_uczacy, family = binomial)
+<div id="model-2---liczba-przepracowanych-lat-w-miejscu-pracy" class="section level3">
+<h3>Model 2 - liczba przepracowanych lat w miejscu pracy</h3>
+<p>W drugim modelu stawiamy hipotezę, że istnieje zależność pomiędzy liczbą przepracowanych lat a liczba kolizji. Czy</p>
+<pre class="r"><code>m2 &lt;- glm(CLAIM_FLAG ~ INCOME + YOJ, data = dane_uczacy, family = binomial)
 summary(m2)</code></pre>
 <pre><code>## 
 ## Call:
-## glm(formula = CLAIM_FLAG ~ INCOME + GENDER, family = binomial, 
-##     data = dane_uczacy)
+## glm(formula = CLAIM_FLAG ~ INCOME + YOJ, family = binomial, data = dane_uczacy)
 ## 
 ## Deviance Residuals: 
 ##     Min       1Q   Median       3Q      Max  
-## -0.9799  -0.8028  -0.7545   1.5429   2.8328  
+## -0.9753  -0.8361  -0.7336   1.3939   2.4758  
 ## 
 ## Coefficients:
 ##               Estimate Std. Error z value Pr(&gt;|z|)    
-## (Intercept) -0.8275939  0.0412361 -20.070  &lt; 2e-16 ***
-## INCOME      -0.0034683  0.0004458  -7.780 7.27e-15 ***
-## GENDER1     -0.0207775  0.0540089  -0.385      0.7    
+## (Intercept) -4.959e-01  7.881e-02  -6.292 3.14e-10 ***
+## INCOME      -7.578e-06  7.635e-07  -9.925  &lt; 2e-16 ***
+## YOJ         -5.605e-03  7.362e-03  -0.761    0.446    
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 ## 
 ## (Dispersion parameter for binomial family taken to be 1)
 ## 
-##     Null deviance: 8344.2  on 7208  degrees of freedom
-## Residual deviance: 8278.2  on 7206  degrees of freedom
-## AIC: 8284.2
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 6547.0  on 5711  degrees of freedom
+## AIC: 6553
 ## 
 ## Number of Fisher Scoring iterations: 4</code></pre>
-<p><strong>Wniosek</strong> <br /> Analizując parametr strukturalny <span class="math inline">\(\beta_1\)</span>, wnioskujemy, że nie występuje istotna zależność pomiędzy płcią a szansą wystąpienia kolizji. Parametr strukturalny <em>GENDERM</em> zweryfikowany testem Walda jest nieistotny statystycznie.</p>
+<p><strong>Wniosek</strong> <br /> Analizując parametr strukturalny <span class="math inline">\(\beta_1\)</span>, wnioskujemy, że nie występuje istotna zależność pomiędzy liczbą przepracowanych lat a szansą wystąpienia kolizji w modelu ze zmienną dochód. Parametr strukturalny <em>YOI</em> zweryfikowany testem Walda jest nieistotny statystycznie modelu m2.</p>
 </div>
-<div id="model-3---rodzic" class="section level3">
-<h3>Model 3 - Rodzic</h3>
+<div id="model-3---fakt-bycia-rodzicem" class="section level3">
+<h3>Model 3 - fakt bycia rodzicem</h3>
 <p>W trzecim modelu stawiamy hipotezę, że istnieje zależność pomiędzy faktem bycia rodzicem liczba kolizji. Zmienna <em>PARENT1</em> jest zmienną dychotomicza, więc weryfikujemy tylko czy osoba jest rodzicem, czy też nie.<br /></p>
-<pre class="r"><code>m4 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1, data = dane_uczacy, family = binomial)
-summary(m4)</code></pre>
+<pre class="r"><code>m3 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1, data = dane_uczacy, family = binomial)
+summary(m3)</code></pre>
 <pre><code>## 
 ## Call:
 ## glm(formula = CLAIM_FLAG ~ INCOME + PARENT1, family = binomial, 
@@ -366,28 +477,28 @@ summary(m4)</code></pre>
 ## 
 ## Deviance Residuals: 
 ##     Min       1Q   Median       3Q      Max  
-## -1.2870  -0.7640  -0.7163   1.2349   2.8353  
+## -1.2767  -0.8048  -0.6988   1.1675   2.4991  
 ## 
 ## Coefficients:
 ##               Estimate Std. Error z value Pr(&gt;|z|)    
-## (Intercept) -0.9800613  0.0369669 -26.512  &lt; 2e-16 ***
-## INCOME      -0.0033311  0.0004464  -7.462 8.53e-14 ***
-## PARENT11     0.9042354  0.0726857  12.440  &lt; 2e-16 ***
+## (Intercept) -7.068e-01  5.179e-02  -13.65   &lt;2e-16 ***
+## INCOME      -7.406e-06  7.280e-07  -10.17   &lt;2e-16 ***
+## PARENT1True  9.373e-01  8.147e-02   11.51   &lt;2e-16 ***
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 ## 
 ## (Dispersion parameter for binomial family taken to be 1)
 ## 
-##     Null deviance: 8344.2  on 7208  degrees of freedom
-## Residual deviance: 8129.6  on 7206  degrees of freedom
-## AIC: 8135.6
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 6419.5  on 5711  degrees of freedom
+## AIC: 6425.5
 ## 
 ## Number of Fisher Scoring iterations: 4</code></pre>
-<p><strong>Wniosek</strong> <br /> Analizując parametr strukturalny <span class="math inline">\(\beta_2\)</span>, wnioskujemy, że zachodzi odwrotna zależność pomiędzy faktem bycia rodzicem a szansą wystąpienia kolizji . <br /> Interpretacja <span class="math inline">\(\beta_2\)</span> -</p>
+<p><strong>Wniosek</strong> <br /> Analizując parametr strukturalny <span class="math inline">\(\beta_3\)</span>, wnioskujemy, że zachodzi odwrotna zależność pomiędzy faktem bycia rodzicem a szansą wystąpienia kolizji. Jeżli ktoś jest rodzicem, to zachodzi mniejsza szansa, że kierowca spowoduje kolizję <br />.</p>
 </div>
-<div id="model-4---age" class="section level3">
-<h3>Model 4 - AGE</h3>
-<p>W trzecim modelu stawiamy hipotezę, że istnieje zależność pomiędzy wiekiem a liczba kolizji. Zmienna <em>AGE</em> jest zmienną ilościową, jednak obserwujemy, że zarówno młodsi jak i starsi biorą udział w większej liczbie kolizji. Jednak bierzemy pod uwagę, że część samochodow moze byc w rzeczywistosci zarejestrowana na osoby starsze ale uzytkowana przez młodych - którzy powodują kolizje <br /> Z tego powodu zmienną wiek przekształciliśmy <span class="math inline">\(y&#39;=(y-\overline{y})^2\)</span>.</p>
+<div id="model-4---wiek" class="section level3">
+<h3>Model 4 - wiek</h3>
+<p>W czwartym modelu stawiamy hipotezę, że istnieje zależność pomiędzy wiekiem a liczba kolizji. Zmienna <em>AGE</em> jest zmienną ilościową, jednak obserwujemy, że zarówno młodsi jak i starsi biorą udział w większej liczbie kolizji. Jednak bierzemy pod uwagę, że część samochodow moze byc w rzeczywistosci zarejestrowana na osoby starsze ale uzytkowana przez młodych - którzy powodują kolizje <br /> Z tego powodu zmienną wiek przekształciliśmy <span class="math inline">\(y&#39;=(y-\overline{y})^2\)</span>.</p>
 <pre class="r"><code>m4 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr, data = dane_uczacy, family = binomial)
 summary(m4)</code></pre>
 <pre><code>## 
@@ -397,132 +508,382 @@ summary(m4)</code></pre>
 ## 
 ## Deviance Residuals: 
 ##     Min       1Q   Median       3Q      Max  
-## -6.2059  -0.7604  -0.7088   1.2186   2.8016  
+## -1.8958  -0.7926  -0.6863   1.1551   2.4076  
 ## 
 ## Coefficients:
 ##               Estimate Std. Error z value Pr(&gt;|z|)    
-## (Intercept) -1.0575297  0.0419112 -25.233  &lt; 2e-16 ***
-## INCOME      -0.0032264  0.0004453  -7.245 4.31e-13 ***
-## PARENT11     0.8671413  0.0733773  11.818  &lt; 2e-16 ***
-## AGE_tr       0.0009796  0.0002562   3.824 0.000131 ***
+## (Intercept) -8.721e-01  5.756e-02 -15.151  &lt; 2e-16 ***
+## INCOME      -7.006e-06  7.303e-07  -9.594  &lt; 2e-16 ***
+## PARENT1True  8.806e-01  8.235e-02  10.693  &lt; 2e-16 ***
+## AGE_tr       1.911e-03  2.783e-04   6.867 6.56e-12 ***
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 ## 
 ## (Dispersion parameter for binomial family taken to be 1)
 ## 
-##     Null deviance: 8344.2  on 7208  degrees of freedom
-## Residual deviance: 8103.2  on 7205  degrees of freedom
-## AIC: 8111.2
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 6372.6  on 5710  degrees of freedom
+## AIC: 6380.6
 ## 
-## Number of Fisher Scoring iterations: 6</code></pre>
-<p><strong>Wniosek</strong> <br /> Analizując parametr strukturalny <span class="math inline">\(\beta_2\)</span>, wnioskujemy, że zachodzi odwrotna zależność pomiędzy faktem bycia rodzicem a szansą wystąpienia kolizji . <br /> Interpretacja <span class="math inline">\(\beta_2\)</span> -</p>
+## Number of Fisher Scoring iterations: 4</code></pre>
+<p><strong>Wniosek</strong> <br /> Analizując parametr strukturalny <span class="math inline">\(\beta_2\)</span>, wnioskujemy, że zachodzi zależność pomiędzy syntentyczną zmienną odległości względem wartości środkowej rozkładu wieku a szansą wystąpienia kolizji . <br /></p>
 </div>
-<div id="model-5---occupation---nie-wejdzie-do-modelu-ale-musze-to-udowodnic-najpierw" class="section level3">
-<h3>Model 5 - occupation - [nie wejdzie do modelu, ale musze to udowodnic najpierw]</h3>
-<p>W czwartym modelu stawiamy hipotezę, że istnieje zależność pomiędzy podejmowanym rodzajem zawodu a liczba kolizji. Zmienna <em>OCCUPATION_GRP</em> jest zmienną dychotomicza, więc weryfikujemy tylko czy osoba wykonuje zawód wymagający wysokich kwalifikacji, czy też nie.<br /></p>
-<pre class="r"><code>m4 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+OCCUPATION_GRP, data = dane_uczacy, family = binomial)
-summary(m4)</code></pre>
+<div id="model-5---wartość-domu---fakt-posiadania-domu" class="section level3">
+<h3>Model 5 - wartość domu -&gt; fakt posiadania domu</h3>
+<p>W piątym modelu stawiamy hipotezę, że istnieje zależność pomiędzy wartością domu a liczba kolizji. Ponieważ w 30% wszystkich rekordów wartość ta wynosi 0, zmienną ilościową zamieniliśmy na nominalną dychotomiczną (<em>HOME_VAL_D</em>) mówiącą o fakcie posiadania domu.</p>
+<pre class="r"><code>m5 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D, data = dane_uczacy, family = binomial)
+summary(m5)</code></pre>
 <pre><code>## 
 ## Call:
-## glm(formula = CLAIM_FLAG ~ INCOME + PARENT1 + AGE_tr + OCCUPATION_GRP, 
+## glm(formula = CLAIM_FLAG ~ INCOME + PARENT1 + AGE_tr + HOME_VAL_D, 
 ##     family = binomial, data = dane_uczacy)
 ## 
 ## Deviance Residuals: 
 ##     Min       1Q   Median       3Q      Max  
-## -6.2311  -0.8270  -0.6392   1.1273   2.4347  
+## -1.9652  -0.7784  -0.6669   1.1207   2.4050  
 ## 
 ## Coefficients:
-##                   Estimate Std. Error z value Pr(&gt;|z|)    
-## (Intercept)     -0.7823909  0.0475989 -16.437  &lt; 2e-16 ***
-## INCOME          -0.0024338  0.0004379  -5.558 2.72e-08 ***
-## PARENT11         0.8769703  0.0742734  11.807  &lt; 2e-16 ***
-## AGE_tr           0.0009740  0.0002593   3.757 0.000172 ***
-## OCCUPATION_GRP1 -0.6181848  0.0554868 -11.141  &lt; 2e-16 ***
+##               Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept) -5.622e-01  7.126e-02  -7.889 3.04e-15 ***
+## INCOME      -6.371e-06  7.272e-07  -8.761  &lt; 2e-16 ***
+## PARENT1True  6.950e-01  8.663e-02   8.023 1.03e-15 ***
+## AGE_tr       1.952e-03  2.810e-04   6.947 3.74e-12 ***
+## HOME_VAL_D1 -4.826e-01  6.733e-02  -7.168 7.60e-13 ***
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 ## 
 ## (Dispersion parameter for binomial family taken to be 1)
 ## 
-##     Null deviance: 8344.2  on 7208  degrees of freedom
-## Residual deviance: 7978.1  on 7204  degrees of freedom
-## AIC: 7988.1
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 6322.2  on 5709  degrees of freedom
+## AIC: 6332.2
 ## 
-## Number of Fisher Scoring iterations: 6</code></pre>
-<p><strong>Wniosek</strong> <br /> Analizując parametr strukturalny <span class="math inline">\(\beta_3\)</span>, wnioskujemy, że wystąpienie kolizji<br /></p>
+## Number of Fisher Scoring iterations: 4</code></pre>
+<pre class="r"><code>summary(m4)$aic - summary(m5)$aic</code></pre>
+<pre><code>## [1] 48.45988</code></pre>
+<p><strong>Wniosek</strong> <br /> Analizując parametr strukturalny <span class="math inline">\(\beta_5\)</span>, wnioskujemy, że zachodzi odwrotna zależność pomiędzy faktem posiadania domu a szansą wystąpienia kolizji. Zmienna <strong>HOME_VAL_D</strong> obniża wartość kryterium informacyjnego Akaike od 48.45. <br /></p>
 </div>
-<div id="model" class="section level3">
-<h3>Model</h3>
-<pre class="r"><code>m &lt;- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr, data = dane_uczacy, family = binomial)
-summary(m)$coefficients</code></pre>
-<pre><code>##                  Estimate   Std. Error    z value      Pr(&gt;|z|)
-## (Intercept) -1.0575297344 0.0419111814 -25.232640 1.756581e-140
-## INCOME      -0.0032264358 0.0004453146  -7.245295  4.314998e-13
-## PARENT11     0.8671413361 0.0733773014  11.817569  3.167165e-32
-## AGE_tr       0.0009796465 0.0002561823   3.824020  1.312930e-04</code></pre>
+<div id="model-6---stan-cywilny" class="section level3">
+<h3>Model 6 - stan cywilny</h3>
+<p>W piątym modelu stawiamy hipotezę, że istnieje zależność pomiędzy faktem bycia małżenstwie a szansą zaistnienia kolizji. Zmienna <strong>MSTATUS</strong> jest zmienną dychotomiczną.</p>
+<pre class="r"><code>m6 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+MSTATUS, data = dane_uczacy, family = binomial)
+summary(m6)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = CLAIM_FLAG ~ INCOME + PARENT1 + AGE_tr + HOME_VAL_D + 
+##     MSTATUS, family = binomial, data = dane_uczacy)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -1.9703  -0.7817  -0.6652   1.1279   2.3819  
+## 
+## Coefficients:
+##               Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept) -5.137e-01  7.763e-02  -6.617 3.66e-11 ***
+## INCOME      -6.573e-06  7.400e-07  -8.882  &lt; 2e-16 ***
+## PARENT1True  6.311e-01  9.558e-02   6.603 4.04e-11 ***
+## AGE_tr       1.984e-03  2.820e-04   7.037 1.97e-12 ***
+## HOME_VAL_D1 -4.139e-01  8.025e-02  -5.158 2.50e-07 ***
+## MSTATUSTrue -1.332e-01  8.542e-02  -1.559    0.119    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 6319.8  on 5708  degrees of freedom
+## AIC: 6331.8
+## 
+## Number of Fisher Scoring iterations: 4</code></pre>
+<p><strong>Wniosek</strong> <br /> Analizując parametr strukturalny <span class="math inline">\(\beta_6\)</span>, wnioskujemy, że nie zachodzi istotna zależność pomiędzy faktem bycią małżonkiem a szansą wystąpienia kolizji.<br /></p>
 </div>
-<div id="weryfikacja-występowania-interakcji" class="section level3">
-<h3>Weryfikacja występowania interakcji</h3>
+<div id="model-7---użytkowanie-samochodu" class="section level3">
+<h3>Model 7 - UŻYTKOWANIE SAMOCHODU</h3>
+<p>W piątym modelu stawiamy hipotezę, że istnieje zależność pomiędzy faktem bycia małżenstwie a szansą zaistnienia kolizji. Zmienna <strong>CAR_USE</strong> jest zmienną dychotomiczną.</p>
+<pre class="r"><code>m7 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE, data = dane_uczacy, family = binomial)
+summary(m7)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = CLAIM_FLAG ~ INCOME + PARENT1 + AGE_tr + HOME_VAL_D + 
+##     CAR_USE, family = binomial, data = dane_uczacy)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -2.0160  -0.7963  -0.6206   1.0700   2.3470  
+## 
+## Coefficients:
+##                  Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)    -7.730e-02  8.182e-02  -0.945    0.345    
+## INCOME         -7.323e-06  7.497e-07  -9.768  &lt; 2e-16 ***
+## PARENT1True     7.309e-01  8.829e-02   8.279  &lt; 2e-16 ***
+## AGE_tr          2.154e-03  2.867e-04   7.515 5.71e-14 ***
+## HOME_VAL_D1    -4.585e-01  6.851e-02  -6.692 2.21e-11 ***
+## CAR_USEPrivate -7.904e-01  6.380e-02 -12.390  &lt; 2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 6167.5  on 5708  degrees of freedom
+## AIC: 6179.5
+## 
+## Number of Fisher Scoring iterations: 4</code></pre>
+<pre class="r"><code>summary(m5)$aic - summary(m7)$aic</code></pre>
+<pre><code>## [1] 152.6199</code></pre>
+<p><strong>Wniosek</strong> Zmienna MSTATUS powoduje utrate istotnosci wyrazu wolnego. Zmienna MSTATUS nie zostaje włączona do modelu</p>
 </div>
-<div id="ewalucja-jakości-modelu" class="section level3">
-<h3>Ewalucja jakości modelu</h3>
-<p>Istotność całego modelu weryfikuje się za pomocą <strong>testu ilorazu wiarygodnodści</strong>, którego hipotezy mają postać: <br /> <span class="math inline">\(H_0 : β_1 = β_2 = ... = β_k = 0\)</span> <br /> <span class="math inline">\(H_1 :∃_{1j≤k≤j} ≤ β_{j} ≠ 0\)</span> <br /> Hipoteza zerowa mówi, że wszystkie parametry przy zmiennych objaśniających są zerami, to znaczy prawdziwy jest jedynie model z wyrazem wolnym.</p>
+<div id="model-8---cena-samochodu" class="section level3">
+<h3>Model 8 - Cena samochodu</h3>
+<pre class="r"><code>m8 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+BLUEBOOK, data = dane_uczacy, family = binomial)
+summary(m8)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = CLAIM_FLAG ~ INCOME + PARENT1 + AGE_tr + HOME_VAL_D + 
+##     BLUEBOOK, family = binomial, data = dane_uczacy)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -1.9515  -0.7825  -0.6625   1.1267   2.4641  
+## 
+## Coefficients:
+##               Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept) -4.275e-01  8.412e-02  -5.082 3.74e-07 ***
+## INCOME      -5.379e-06  7.953e-07  -6.764 1.35e-11 ***
+## PARENT1True  6.932e-01  8.671e-02   7.995 1.30e-15 ***
+## AGE_tr       1.953e-03  2.813e-04   6.942 3.88e-12 ***
+## HOME_VAL_D1 -4.802e-01  6.739e-02  -7.126 1.03e-12 ***
+## BLUEBOOK    -1.276e-05  4.249e-06  -3.003  0.00267 ** 
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 6313.1  on 5708  degrees of freedom
+## AIC: 6325.1
+## 
+## Number of Fisher Scoring iterations: 4</code></pre>
+<p><strong>Wniosek</strong> Zmienna BlueBook pogarsza nasz model podwyyższajac wartość kryterium informacyjnego Akaike. Zmienna bluebook nie zostaje włączona do modelu.</p>
 </div>
-<div id="ewaluacja-zbiorcza---to-do" class="section level3">
-<h3>Ewaluacja zbiorcza - TO DO</h3>
-<p><strong>Podstawowe miary oceny skutecznosci modelu regresji logistycznej</strong> Skuteczność wyprowadzonych modeli zweryfikowano w oparciu o poniższe miary: <span class="math inline">\(PP\)</span> - wskazania prawdziwie pozytywne - poprawnie zaklasyfikowane z klasy pozytywnej (1) <br /> <span class="math inline">\(FP\)</span> - wskazania fałszywie pozytywne - niepoprawnie sklasyfkowane wskazania z klasy pozytywnej <br /> <span class="math inline">\(FN\)</span> - wskazania fałszywie negatywne - niepoprawnie wskazania klasy negatywnej <br /> <span class="math inline">\(PN\)</span> - wskazania prawdziwie negatywne - poprawne wskazania klasy negatywnej <br /></p>
-<p><span class="math inline">\(Dokładność = \frac{PP+PN}{N}\)</span> - Iloraz wskazań poprawnie sklasyfikowanych do wszystkich elementów. Ze względu na to, że dokładność nie odzwierciedla dobrze skuteczności modelu z danymi niezbalansowanymi, wykorzystano również miary czułości i specyficzności.<br /> Czułość <span class="math inline">\(= \frac{PP}{PP+FN}\)</span> - określa udział przypadków prawidłowo zaklasyfikowanych wśród wszystkich objętych przewidywaniem pozytywnym. </br></p>
-<p>Specyficzność <span class="math inline">\(= \frac{PN}{PN+FP}\)</span> <br /></p>
-<p><strong>Miary dopasowania R2</strong> <br /> Pseudo-<span class="math inline">\(R^2\)</span> McFaddena<br /> Opiera się on na porównaniu modelu pełnego z modelem zredukowanym tylko dla wyrazu wolnego. Oblicza się go według wzoru: <br /> <span class="math inline">\(R^2 = 1 - \frac{\sum_i (y_i - \beta x_i)^2}{\sum_i (y_i - \bar y)^2}\)</span> <br /> W praktyce wartości <span class="math inline">\(R^2\)</span> McFaddena są niewielkie, bliższe 0 niż 1.</p>
-<p>Pseudo-<span class="math inline">\(R^2\)</span> Maddala<br /></p>
-<pre class="r"><code>p&lt;-0.5
-
-##
-ocena_modelu_dwum &lt;- function(model) {
-  kryterium_AIC &lt;- c(model$aic)
-  McFadden&lt;-pR2(model)[4]
-  Cragg_Uhler&lt;-pR2(model)[6]
-  ocena &lt;- data.frame(kryterium_AIC, McFadden, Cragg_Uhler)
-  return(ocena)
-}
-
-ocena_modelu_dwum(m1)</code></pre>
-<pre><code>## fitting null model for pseudo-r2
-## fitting null model for pseudo-r2</code></pre>
-<pre><code>##          kryterium_AIC    McFadden Cragg_Uhler
-## McFadden      8282.348 0.007888629  0.01325509</code></pre>
-<pre class="r"><code>##
-miary_pred &lt;- function(model, dane, Y, p = 0.5) {
-  tab &lt;- table(obserwowane = Y, przewidywane = ifelse(predict(model, dane, type = &quot;response&quot;) &gt; p, 1, 0))
-  ACC &lt;- (tab[1,1]+tab[2,2])/sum(tab)
-  ER &lt;- (tab[1,2]+tab[2,1])/sum(tab)
-  SENS &lt;- tab[2,2] / (tab[2,2] + tab[2,1])
-  SPECI &lt;- tab[1,1] / (tab[1,1] + tab[1,2])
-  PPV &lt;- tab[2,2] / (tab[2,2] + tab[1,2])
-  NPV &lt;- tab[1,1] / (tab[1,1] + tab[2,1])
-  #Proszę dodpisać pozostałe miary jakości predykcji
-  miary &lt;- data.frame(ACC, ER,SENS, SPECI, PPV, NPV)
-  return(miary)
-}
-
-
-wyniki_miary_pred &lt;- rbind(model_logit = miary_pred(model = m, dane = dane_testowy, Y = dane_testowy$CLAIM_FLAG, p))
-wyniki_miary_pred</code></pre>
-<pre><code>##                   ACC        ER       SENS    SPECI       PPV       NPV
-## model_logit 0.7329233 0.2670767 0.03489771 0.989814 0.5576923 0.7359236</code></pre>
-<pre class="r"><code>###
-rocobj1 &lt;- roc(m$y, m$fitted.values)</code></pre>
-<pre><code>## Setting levels: control = 0, case = 1</code></pre>
-<pre><code>## Setting direction: controls &lt; cases</code></pre>
-<pre class="r"><code>rocobj1_t &lt;- roc(dane_testowy$CLAIM_FLAG, predict(m, dane_testowy, type = &quot;response&quot;))</code></pre>
-<pre><code>## Setting levels: control = 0, case = 1
-## Setting direction: controls &lt; cases</code></pre>
-<pre class="r"><code>###
-plot(rocobj1, main = &quot;krzywe ROC dla modelu logitowego&quot;, col=&quot;red&quot;)
-lines(rocobj1_t, col=&quot;blue&quot;)</code></pre>
-<p><img src="data:image/png;base64,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" width="672" /></p>
-<pre class="r"><code>#tab &lt;- table(obserwowane = dane[&#39;CLAIM_FLAG&#39;], przewidywane = ifelse(predict(m, dane, type = &quot;response&quot;) &gt; p, 1, 0))
-#tab</code></pre>
-<p><strong>Reference</strong> <br /> <strong>Wykorzystanie modeli logitowych w analizie czynników aktywności zawodowej ludności</strong>, Dominik ŚLIWICKI, Marek RĘKLEWSKI, 2006</p>
+<div id="model-9---liczba-lat-jako-klient" class="section level3">
+<h3>Model 9 - liczba lat jako klient</h3>
+<pre class="r"><code>m9 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+TIF, data = dane_uczacy, family = binomial)
+summary(m9)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = CLAIM_FLAG ~ INCOME + PARENT1 + AGE_tr + HOME_VAL_D + 
+##     TIF, family = binomial, data = dane_uczacy)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -2.0559  -0.7830  -0.6541   1.1008   2.5031  
+## 
+## Coefficients:
+##               Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept) -3.285e-01  8.122e-02  -4.044 5.25e-05 ***
+## INCOME      -6.293e-06  7.260e-07  -8.668  &lt; 2e-16 ***
+## PARENT1True  6.980e-01  8.707e-02   8.017 1.08e-15 ***
+## AGE_tr       1.975e-03  2.814e-04   7.020 2.22e-12 ***
+## HOME_VAL_D1 -4.860e-01  6.762e-02  -7.187 6.62e-13 ***
+## TIF         -4.597e-02  7.786e-03  -5.904 3.54e-09 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 6286.0  on 5708  degrees of freedom
+## AIC: 6298
+## 
+## Number of Fisher Scoring iterations: 4</code></pre>
+<p><strong>Wniosek</strong> Zmienna TIF pogarsza nasz model podwyyższajac wartość kryterium informacyjnego Akaike. Zmienna TIF nie zostaje włączona do modelu, na podstawie dedukcji.</p>
+</div>
+<div id="model-10---typ-samochodu" class="section level3">
+<h3>Model 10 - typ samochodu</h3>
+<p>Typ samochodu wiąże się z jego gabarytami, widocznością ciemnych pól widzenia i zakładamy, że może wypływać na zwiększoną szansę udziału w kolizji.</p>
+<pre class="r"><code>m10 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_TYPE, data = dane_uczacy, family = binomial)
+summary(m10)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = CLAIM_FLAG ~ INCOME + PARENT1 + AGE_tr + HOME_VAL_D + 
+##     CAR_TYPE, family = binomial, data = dane_uczacy)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -1.9389  -0.7989  -0.6368   1.0902   2.3777  
+## 
+## Coefficients:
+##                       Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)         -1.098e+00  9.573e-02 -11.468  &lt; 2e-16 ***
+## INCOME              -6.629e-06  7.581e-07  -8.745  &lt; 2e-16 ***
+## PARENT1True          7.161e-01  8.768e-02   8.168 3.15e-16 ***
+## AGE_tr               1.955e-03  2.856e-04   6.844 7.72e-12 ***
+## HOME_VAL_D1         -4.907e-01  6.801e-02  -7.215 5.39e-13 ***
+## CAR_TYPEPanel Truck  9.302e-01  1.304e-01   7.132 9.90e-13 ***
+## CAR_TYPEPickup       7.967e-01  9.928e-02   8.025 1.02e-15 ***
+## CAR_TYPESports Car   6.647e-01  1.131e-01   5.878 4.15e-09 ***
+## CAR_TYPESUV          6.024e-01  8.987e-02   6.703 2.04e-11 ***
+## CAR_TYPEVan          8.160e-01  1.243e-01   6.566 5.16e-11 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 6220.2  on 5704  degrees of freedom
+## AIC: 6240.2
+## 
+## Number of Fisher Scoring iterations: 4</code></pre>
+<pre class="r"><code>summary(m7)$aic - summary(m10)$aic</code></pre>
+<pre><code>## [1] -60.67784</code></pre>
+<p><strong>Wniosek</strong> Ze względu na to, że zmienna CAR_TYPE znacznie zawyża wartość kryterium informacyjnego, decydujemy o nie włączaniu jej do modelu.</p>
+</div>
+<div id="model-11---odebranie-prawa-jazdy-w-ciagu-ostatnich-7-lat." class="section level3">
+<h3>Model 11 - odebranie prawa jazdy w ciagu ostatnich 7 lat.</h3>
+<p>Weryfikacja czy fakt odebrania prawa jazdy zwiększa szanse na spowodowanie / udział w kolizji</p>
+<pre class="r"><code>m11 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+REVOKED, data = dane_uczacy, family = binomial)
+summary(m11)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = CLAIM_FLAG ~ INCOME + PARENT1 + AGE_tr + HOME_VAL_D + 
+##     REVOKED, family = binomial, data = dane_uczacy)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -2.1595  -0.7695  -0.6395   1.0567   2.4137  
+## 
+## Coefficients:
+##               Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept) -6.857e-01  7.309e-02  -9.382  &lt; 2e-16 ***
+## INCOME      -6.478e-06  7.352e-07  -8.811  &lt; 2e-16 ***
+## PARENT1True  6.749e-01  8.762e-02   7.703 1.33e-14 ***
+## AGE_tr       1.919e-03  2.825e-04   6.791 1.11e-11 ***
+## HOME_VAL_D1 -4.738e-01  6.809e-02  -6.958 3.44e-12 ***
+## REVOKEDTrue  8.823e-01  8.479e-02  10.407  &lt; 2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 6217.4  on 5708  degrees of freedom
+## AIC: 6229.4
+## 
+## Number of Fisher Scoring iterations: 4</code></pre>
+<p><strong>Wniosek</strong> Ze względu na to, że zmienna REVOKED znacznie zawyża wartość kryterium informacyjnego, decydujemy o nie włączaniu jej do modelu.</p>
+<pre class="r"><code>summary(m7)$aic - summary(m11)$aic</code></pre>
+<pre><code>## [1] -49.84043</code></pre>
+</div>
+<div id="model-12---wiek-samochodu" class="section level3">
+<h3>Model 12 - wiek samochodu</h3>
+<pre class="r"><code>m12 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_AGE, data = dane_uczacy, family = binomial)
+summary(m12)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = CLAIM_FLAG ~ INCOME + PARENT1 + AGE_tr + HOME_VAL_D + 
+##     CAR_AGE, family = binomial, data = dane_uczacy)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -1.9503  -0.7825  -0.6562   1.1216   2.3628  
+## 
+## Coefficients:
+##               Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept) -4.136e-01  7.784e-02  -5.313 1.08e-07 ***
+## INCOME      -4.850e-06  7.911e-07  -6.130 8.77e-10 ***
+## PARENT1True  6.695e-01  8.699e-02   7.697 1.40e-14 ***
+## AGE_tr       2.002e-03  2.825e-04   7.086 1.38e-12 ***
+## HOME_VAL_D1 -4.980e-01  6.760e-02  -7.367 1.75e-13 ***
+## CAR_AGE     -2.850e-02  6.082e-03  -4.687 2.78e-06 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 6300.0  on 5708  degrees of freedom
+## AIC: 6312
+## 
+## Number of Fisher Scoring iterations: 4</code></pre>
+<pre class="r"><code>summary(m7)$aic - summary(m12)$aic</code></pre>
+<pre><code>## [1] -132.449</code></pre>
+<p><strong>Wnioski</strong> Parametr wieku samochodu jest istotny statystycznie jednak wprowadzenie go do modelu podwyższa wartość kryterium informacyjnego Akaike o 132.45 jednostek. W rezultacie nie zostaje włączony do modelu.</p>
+</div>
+<div id="model-13--jednostka-osadnicza" class="section level3">
+<h3>Model 13 -jednostka osadnicza</h3>
+<p>Zagęszczenie, skomplikowanie sieci dróg oraz intensywność ruchu samochodowego ma bezpośrednio wpływ na ryzyko zajścia sytuacji kolizyjnych w ruhu drogowym.</p>
+<pre class="r"><code>m13 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+URBANICITY, data = dane_uczacy, family = binomial)
+summary(m13)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = CLAIM_FLAG ~ INCOME + PARENT1 + AGE_tr + HOME_VAL_D + 
+##     URBANICITY, family = binomial, data = dane_uczacy)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -2.1716  -0.8130  -0.5562   0.9377   2.8268  
+## 
+## Coefficients:
+##                                 Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)                   -2.291e+00  1.338e-01 -17.123  &lt; 2e-16 ***
+## INCOME                        -1.017e-05  7.880e-07 -12.905  &lt; 2e-16 ***
+## PARENT1True                    8.004e-01  9.326e-02   8.583  &lt; 2e-16 ***
+## AGE_tr                         1.724e-03  2.945e-04   5.855 4.78e-09 ***
+## HOME_VAL_D1                   -5.403e-01  7.083e-02  -7.629 2.37e-14 ***
+## URBANICITYHighly Urban/ Urban  2.299e+00  1.280e-01  17.963  &lt; 2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 5808.4  on 5708  degrees of freedom
+## AIC: 5820.4
+## 
+## Number of Fisher Scoring iterations: 5</code></pre>
+<pre class="r"><code>summary(m7)$aic - summary(m12)$aic</code></pre>
+<pre><code>## [1] -132.449</code></pre>
+<p><strong>Wniosek</strong> Zmienna charakteryzująca jednostke osadniczą pozwoli Wykorzystanie zmiennej charakteryzującej jednostkę osadniczą pozwoliło uzyskać model, który uzyskał wartość kryterium Akaike o 359 punktów niższą względem najlepszego dotychczasowego modelu.</p>
+</div>
+<div id="model-14---typ-zatrudnienia" class="section level3">
+<h3>Model 14 - typ zatrudnienia</h3>
+<p>Zakładamy, że osoby zatrudniony w zawodach wymagających wysokich kompetencji.</p>
+<pre class="r"><code>m14 &lt;- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+URBANICITY+OCCUPATION_GRP, data = dane_uczacy, family = binomial)
+summary(m14)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = CLAIM_FLAG ~ INCOME + PARENT1 + AGE_tr + HOME_VAL_D + 
+##     URBANICITY + OCCUPATION_GRP, family = binomial, data = dane_uczacy)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -2.2906  -0.7772  -0.5438   0.9199   2.8852  
+## 
+## Coefficients:
+##                                 Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)                   -2.198e+00  1.343e-01 -16.361  &lt; 2e-16 ***
+## INCOME                        -8.548e-06  7.923e-07 -10.790  &lt; 2e-16 ***
+## PARENT1True                    8.286e-01  9.424e-02   8.792  &lt; 2e-16 ***
+## AGE_tr                         1.822e-03  2.967e-04   6.141 8.20e-10 ***
+## HOME_VAL_D1                   -4.854e-01  7.177e-02  -6.763 1.35e-11 ***
+## URBANICITYHighly Urban/ Urban  2.385e+00  1.291e-01  18.476  &lt; 2e-16 ***
+## OCCUPATION_GRP1               -5.925e-01  6.729e-02  -8.804  &lt; 2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 6675.8  on 5713  degrees of freedom
+## Residual deviance: 5730.7  on 5707  degrees of freedom
+## AIC: 5744.7
+## 
+## Number of Fisher Scoring iterations: 5</code></pre>
+<pre class="r"><code>summary(m13)$aic - summary(m14)$aic</code></pre>
+<pre><code>## [1] 75.67077</code></pre>
+<p><strong>Wniosek</strong></p>
+<pre class="r"><code>summary(m1)$aic - summary(m13)$aic</code></pre>
+<pre><code>## [1] 731.1705</code></pre>
 </div>
 </div>
 
