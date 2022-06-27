@@ -25,8 +25,7 @@ to do list: \
  - interakcje -
  - część samochodow moze byc w rzeczywistosci zarejestrowana na osoby starsze ale uzytkowana przez młodych - którzy powodują kolizje
  -Jeszcze analizuje ale mysle, ze takie zalozenie ma sens, opieramy model na: dochodzie, fakcie bycia rodzicem, wieku i uprzednio otrzymanych punktach karnych. Pozostałe zmienne są pochodnymi tych cech.
- 
- 
+
 ### Wczytanie danych
 ```{r}
 dane <- read.csv("C:/Users/dominikm/Desktop/Modele_Parametryczne_Projekt/Modele_Parametryczne/dane/LR_dane_treningowe_testowe.csv")
@@ -76,6 +75,11 @@ dane <- na.omit(dane)
 dane$AGE_tr <-(dane$AGE - median(dane$AGE))**2
 
 
+## hOME VAL
+dane$HOME_VAL_D <- 0
+dane$HOME_VAL_D[dane$HOME_VAL  == 0] <-0
+dane$HOME_VAL_D[dane$HOME_VAL != 0] <- 1
+dane$HOME_VAL_D <- as.factor(dane$HOME_VAL_D)
 
 
 
@@ -148,15 +152,18 @@ for (c in cols[6:length(cols)]){
   w_test <- waldtest(m)
   
   if (w_test$`Pr(>F)`[2] < 0.05){
-      print(paste('istotna',c ,'pvalue:', format(w_test$`Pr(>F)`[2], 15), scientific = TRUE)[1])  
+      print(paste('istotna',c ,'pvalue:', format(w_test$`Pr(>F)`[2],  scientific = TRUE))[1])  
       #istotne <- append(istotne, c)
   } else{
       print(paste('nieistotna',c,'pvalue:', round(w_test$`Pr(>F)`[2], 2) ))
       #print(summary(m)$coefficients)
   }
 }
+
 ```
-W iteracyjnej weryfikacji istotności zmiennych, mające wpływ na na liczbę kolizji okazały sie:`istotne`
+W iteracyjnej weryfikacji istotności zmiennych, większość zmiennych okazała się istotna.
+Wśród cech nie mających wpływu na wystąpienie kolizji wyróżniamy płeć, kolor czerwony samochodu, wartość szkody.
+Pozostałe (istotne) zmienne posłużą w budowaniu modelu. Wśród kryterióW jakości modelu, cechy dobierane są w oparciu o dostępną wiedzę i doświadczenie. <br />
 
 
 #### Proces budowania kolejnych zmiennych
@@ -165,63 +172,38 @@ W pierwszym modelu stawiamy hipotezę, że istnieje zależność pomiędzy wzros
 ```{r}
 m1 <- glm(CLAIM_FLAG~INCOME, data = dane_uczacy, family = binomial)
 summary(m1)
+
 ```
 **Wniosek** <br/>
 Analizując parametr strukturalny $\beta_1$, wnioskujemy, że zachodzi odwrotna zależność pomiędzy dochodem a szansą wystąpienia kolizji(Destymulanta).
 
 
-### Model 2 -Płeć
-W drugim modelu stawiamy hipotezę, że istnieje zależność pomiędzy płcią a liczba kolizji.
+### Model 2 - Liczba przepracowanych lat w miejscu pracy
+W drugim modelu stawiamy hipotezę, że istnieje zależność pomiędzy liczbą przepracowanych lat a liczba kolizji.
 Czy 
 ```{r}
-m2 <- glm(CLAIM_FLAG~INCOME+GENDER, data = dane_uczacy, family = binomial)
+m2 <- glm(CLAIM_FLAG ~ INCOME + YOJ, data = dane_uczacy, family = binomial)
 summary(m2)
+
 ```
 **Wniosek** <br/>
-Analizując parametr strukturalny $\beta_1$, wnioskujemy, że nie występuje istotna zależność pomiędzy płcią a szansą wystąpienia kolizji.
-Parametr strukturalny *GENDERM*  zweryfikowany testem Walda jest nieistotny statystycznie.
+Analizując parametr strukturalny $\beta_1$, wnioskujemy, że nie występuje istotna zależność pomiędzy liczbą przepracowanych lat a szansą wystąpienia kolizji w modelu ze zmienną dochód.
+Parametr strukturalny *YOI*  zweryfikowany testem Walda jest nieistotny statystycznie modelu m2.
 
-### Model 3 - Rodzic
+### Model 3 - fakt bycia rodzicem
 W trzecim modelu stawiamy hipotezę, że istnieje zależność pomiędzy faktem bycia rodzicem liczba kolizji.
 Zmienna *PARENT1* jest zmienną dychotomicza, więc weryfikujemy tylko czy osoba jest rodzicem, czy też nie.<br/>
 
 ```{r}
-m4 <- glm(CLAIM_FLAG~INCOME+PARENT1, data = dane_uczacy, family = binomial)
-summary(m4)
+m3 <- glm(CLAIM_FLAG~INCOME+PARENT1, data = dane_uczacy, family = binomial)
+summary(m3)
 ```
 **Wniosek** <br/>
-Analizując parametr strukturalny $\beta_2$, wnioskujemy, że zachodzi odwrotna zależność pomiędzy faktem bycia rodzicem a szansą wystąpienia kolizji . <br/>
-Interpretacja $\beta_2$ - 
+Analizując parametr strukturalny $\beta_3$, wnioskujemy, że zachodzi odwrotna zależność pomiędzy faktem bycia rodzicem a szansą wystąpienia kolizji. Jeżli ktoś jest rodzicem, to zachodzi mniejsza szansa, że kierowca spowoduje kolizję <br/>.
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### Model 4 - AGE
-W trzecim modelu stawiamy hipotezę, że istnieje zależność pomiędzy wiekiem a liczba kolizji.
+### Model 4 - wiek
+W czwartym modelu stawiamy hipotezę, że istnieje zależność pomiędzy wiekiem a liczba kolizji.
 Zmienna *AGE* jest zmienną ilościową, jednak obserwujemy, że zarówno młodsi jak i starsi biorą udział w większej liczbie kolizji. 
 Jednak bierzemy pod uwagę, że część samochodow moze byc w rzeczywistosci zarejestrowana na osoby starsze ale uzytkowana przez młodych - którzy powodują kolizje <br/>
 Z tego powodu zmienną wiek przekształciliśmy $y'=(y-\overline{y})^2$.
@@ -230,8 +212,134 @@ m4 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr, data = dane_uczacy, family = binomia
 summary(m4)
 ```
 **Wniosek** <br/>
-Analizując parametr strukturalny $\beta_2$, wnioskujemy, że zachodzi odwrotna zależność pomiędzy faktem bycia rodzicem a szansą wystąpienia kolizji . <br/>
-Interpretacja $\beta_2$ - 
+Analizując parametr strukturalny $\beta_2$, wnioskujemy, że zachodzi zależność pomiędzy syntentyczną zmienną odległości względem wartości środkowej rozkładu wieku a szansą wystąpienia kolizji . <br/>
+
+
+### Model 5 - wartość domu -> fakt posiadania domu
+W piątym modelu stawiamy hipotezę, że istnieje zależność pomiędzy wartością domu a liczba kolizji.
+Ponieważ w 30% wszystkich rekordów wartość ta wynosi 0, zmienną ilościową zamieniliśmy na nominalną dychotomiczną (*HOME_VAL_D*) mówiącą o fakcie posiadania domu.
+
+```{r}
+m5 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D, data = dane_uczacy, family = binomial)
+summary(m5)
+```
+```{r}
+summary(m4)$aic - summary(m5)$aic
+```
+**Wniosek** <br/>
+Analizując parametr strukturalny $\beta_5$, wnioskujemy, że zachodzi  odwrotna zależność pomiędzy faktem posiadania domu a szansą wystąpienia kolizji. Zmienna **HOME_VAL_D** obniża wartość kryterium informacyjnego Akaike od 48.45. <br/>
+
+
+### Model 6 - stan cywilny
+W piątym modelu stawiamy hipotezę, że istnieje zależność pomiędzy faktem bycia małżenstwie a szansą zaistnienia kolizji.
+Zmienna **MSTATUS** jest zmienną dychotomiczną.
+
+```{r}
+m6 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+MSTATUS, data = dane_uczacy, family = binomial)
+summary(m6)
+```
+**Wniosek** <br/>
+Analizując parametr strukturalny $\beta_6$, wnioskujemy, że nie zachodzi istotna zależność pomiędzy faktem bycią małżonkiem a szansą wystąpienia kolizji.<br/>
+
+
+### Model 7 - 
+W piątym modelu stawiamy hipotezę, że istnieje zależność pomiędzy faktem bycia małżenstwie a szansą zaistnienia kolizji.
+Zmienna **CAR_USE** jest zmienną dychotomiczną.
+
+```{r}
+m7 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE, data = dane_uczacy, family = binomial)
+summary(m7)
+```
+```{r}
+summary(m5)$aic - summary(m7)$aic
+```
+**Wniosek**
+
+[1] "istotna TRAVTIME pvalue: 5.425129e-07"
+[1] "istotna CAR_USE pvalue: 5.353845e-28"
+[1] "istotna BLUEBOOK pvalue: 2.554077e-14"
+[1] "istotna TIF pvalue: 3.066795e-09"
+[1] "istotna CAR_TYPE pvalue: 4.643908e-20"
+[1] "nieistotna RED_CAR pvalue: 0.48"
+[1] "istotna OLDCLAIM pvalue: 4.806921e-23"
+[1] "istotna CLM_FREQ pvalue: 4.713843e-78"
+[1] "istotna REVOKED pvalue: 1.327e-28"
+Warning: glm.fit: algorithm did not converge
+Warning: glm.fit: fitted probabilities numerically 0 or 1 occurred
+[1] "nieistotna CLM_AMT pvalue: 0.99"
+[1] "istotna CAR_AGE pvalue: 1.231955e-18"
+[1] "istotna URBANICITY pvalue: 5.618925e-54"
+[1] "istotna MVR_PTS_GRP pvalue: 5.363152e-32"
+[1] "istotna OCCUPATION_GRP pvalue: 3.650535e-22"
+[1] "istotna AGE_tr pvalue: 3.091067e-19"
+[1] "istotna HOME_VAL_D pvalue: 3.678084e-30"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Model 7 - 
+W piątym modelu stawiamy hipotezę, że istnieje zależność pomiędzy faktem bycia małżenstwie a szansą zaistnienia kolizji.
+Zmienna **MSTATUS** jest zmienną dychotomiczną.
+
+```{r}
+m7 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+TRAVTIME, data = dane_uczacy, family = binomial)
+summary(m7)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ### Model 5 - occupation - [nie wejdzie do modelu, ale musze to udowodnic najpierw]
