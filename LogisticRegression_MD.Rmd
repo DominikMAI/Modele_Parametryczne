@@ -29,13 +29,13 @@ to do list: \
 ### Wczytanie danych
 ```{r}
 dane <- read.csv("./dane/LR_dane_treningowe_testowe.csv")
+dane <- dane[, -c(24)]
 summary(dane)
 ```
 
 ### Wstępne przetworzenie 
 ```{r pressure, echo=FALSE}
 dane$CLAIM_FLAG <- as.factor(dane$CLAIM_FLAG)
-dane$KIDSDRIV <- as.factor(dane$KIDSDRIV)
 dane$HOMEKIDS <- as.factor(dane$HOMEKIDS)
 dane$PARENT1 <- as.factor(dane$PARENT1)
 dane$MSTATUS <- as.factor(dane$MSTATUS)
@@ -145,11 +145,12 @@ Zatem w procesie
 cols <- as.vector(colnames(dane[,-c(26,23)]))
 
 istotne = list()
-for (c in cols[6:length(cols)]){
-  #print(c)
-  m <- glm(as.formula(paste('CLAIM_FLAG', "~", c)), data = dane_uczacy, family = binomial)
+for (c in cols[3:length(cols)]){
   
-  w_test <- waldtest(m)
+  if (c != 'CLAIM_FLAG'){
+  
+    m <- glm(as.formula(paste('CLAIM_FLAG', "~", c)), data = dane_uczacy, family = binomial)
+    w_test <- waldtest(m)
   
   if (w_test$`Pr(>F)`[2] < 0.05){
       print(paste('istotna',c ,'pvalue:', format(w_test$`Pr(>F)`[2],  scientific = TRUE))[1])  
@@ -157,6 +158,7 @@ for (c in cols[6:length(cols)]){
   } else{
       print(paste('nieistotna',c,'pvalue:', round(w_test$`Pr(>F)`[2], 2) ))
       #print(summary(m)$coefficients)
+  }
   }
 }
 
@@ -258,11 +260,11 @@ summary(m5)$aic - summary(m7)$aic
 ```
 **Wniosek**
 Zmienna MSTATUS powoduje utrate istotnosci wyrazu wolnego.
-Zmienna **CAR_USE** zostaje włączona do modelu, jej właczenie pozwala na obniżenie kryterium informacyjnego o 152.62 jednostek.
+Zmienna **CAR_USE** nie zostaje włączona do modelu, jej właczenie pozwala na obniżenie kryterium informacyjnego o 152.62 jednostek.
 
 ### Model 8 - Cena samochodu
 ```{r}
-m8 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK, data = dane_uczacy, family = binomial)
+m8 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+BLUEBOOK, data = dane_uczacy, family = binomial)
 summary(m8)
 ```
 ```{r}
@@ -270,13 +272,13 @@ summary(m7)$aic - summary(m8)$aic
 ```
 
 **Wniosek**
-Zmienna BlueBook poprawia dopasowanie naszego modelu, obniżając wartość kryterium informacyjnego Akaike 28.26 jednostek.
-Zmienna bluebook zostaje włączona do modelu.
+Zmienna BlueBook nie poprawia dopasowanie naszego modelu, podwyższając wartość kryterium informacyjnego Akaike 145.51 jednostek.
+Zmienna bluebook nie zostaje włączona do modelu.
 
 
 ### Model 9 - liczba lat jako klient
 ```{r}
-m9 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF, data = dane_uczacy, family = binomial)
+m9 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+TIF, data = dane_uczacy, family = binomial)
 summary(m9)
 ```
 
@@ -300,7 +302,7 @@ summary(m9)$aic - summary(m10)$aic
 ```
 **Wniosek**
 Ze względu na to, że zmienna CAR_TYPE znacznie obniża wartość kryterium informacyjnego, decydujemy o włączaniu jej do modelu.
-Zmienna obniża wartość kryterium informacyjnego Akaike o 48.14.
+Zmienna obniża wartość kryterium informacyjnego Akaike o 233.37.
 
 ### Model 11 - odebranie prawa jazdy w ciagu ostatnich 7 lat.
 Weryfikacja czy fakt odebrania prawa jazdy zwiększa szanse na spowodowanie / udział w kolizji
@@ -356,16 +358,69 @@ summary(m13)$aic - summary(m14)$aic
 **Wniosek**
 Zmienna pogarsza nasz model itd, jutro skoncze.
 
+### Model 15 -  typ zatrudnienia
+```{r}
+m15 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+CAR_TYPE+REVOKED+KIDSDRIV, data = dane_uczacy, family = binomial)
+summary(m15)
+```
+
+```{r}
+summary(m13)$aic - summary(m15)$aic
+```
+**Wniosek**
+Zmienna pogarsza nasz model itd, jutro skoncze.
+
+
+### Model 16 -  liczba dzieci
+```{r}
+m16 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+CAR_TYPE+REVOKED+HOMEKIDS, data = dane_uczacy, family = binomial)
+summary(m16)
+```
+
+```{r}
+summary(m13)$aic - summary(m16)$aic
+```
+**Wniosek**
+Zmienna pogarsza nasz model itd, jutro skoncze.
+
+
+### Interakcje
+
+
+
 # Najlepszy - najgorszy
 ```{r}
-
 summary(m1)$aic - summary(m13)$aic
 ```
 
+colnames(dane)
+
+```{r}
+cols <- as.vector(colnames(dane[,-c(26,23)]))
+
+df <- data.frame(matrix(ncol = 4, nrow = 0))
+colnames(df) <- c("zmienna_a", "zmienna_b", "Wald_p_v",'Akaike')
 
 
+istotne = list()
+for (i in cols[1:length(cols)]){
+  for (j in cols[1:length(cols)]){
+    if ((i != 'CLAIM_FLAG')&(j != 'CLAIM_FLAG')){
+      if (i != j){
+        m <- glm(as.formula(paste('CLAIM_FLAG', "~", i,":",j)), data = dane_uczacy, family = binomial)
+        w_test <- waldtest(m)
+        #print(paste(i,j))
+      if (w_test$`Pr(>F)`[2] < 1e-15){
+        print(paste('istotna',i,j ,'pvalue:', format(w_test$`Pr(>F)`[2],  scientific = TRUE))[1])  
+        df[nrow(df) + 1,] = c(i, j, w_test$`Pr(>F)`[2], m$aic)
+     }
+    }
+  }
+ }
+}
 
 
+```
 
 
 
