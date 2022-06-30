@@ -111,3 +111,36 @@ lines(rocobj1_t, col="blue")
 **Reference** <br />
 **Wykorzystanie modeli logitowych w analizie czynników aktywności zawodowej ludności**, Dominik ŚLIWICKI, Marek RĘKLEWSKI, 2006
 
+
+
+
+```{r}
+cols <- as.vector(colnames(dane[,-c(26,23)]))
+
+
+cols <- as.vector(c( 'AGE', 'YOJ', 'GENDER', 'HOME_VAL', 'BLUEBOOK','CAR_AGE'))
+
+df <- data.frame(matrix(ncol = 4, nrow = 0))
+colnames(df) <- c("zmienna_a", "zmienna_b", "Wald_p_v",'Akaike')
+
+
+istotne = list()
+for (i in cols[1:length(cols)]){
+  for (j in cols[1:length(cols)]){
+    if ((i != 'CLAIM_FLAG')&(j != 'CLAIM_FLAG')){
+      if (i != j){
+        m <- glm(as.formula(paste('CLAIM_FLAG', "~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+CAR_TYPE+REVOKED+", i,":",j)), 
+                 data = dane_uczacy, 
+                 family = binomial)
+        
+        w_test <- waldtest(m)
+      if (w_test$`Pr(>F)`[2] < 1e-15){
+        print(paste('istotna',i,j ,'pvalue:', format(w_test$`Pr(>F)`[2],  scientific = TRUE))[1])  
+        df[nrow(df) + 1,] = c(i, j, w_test$`Pr(>F)`[2], m$aic)
+     }
+    }
+  }
+ }
+}
+
+```

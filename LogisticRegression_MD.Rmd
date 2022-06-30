@@ -392,37 +392,101 @@ Zmienna pogarsza nasz model itd, jutro skoncze.
 ```{r}
 summary(m1)$aic - summary(m13)$aic
 ```
-
-colnames(dane)
-
+### Ocena 
 ```{r}
-cols <- as.vector(colnames(dane[,-c(26,23)]))
 
-df <- data.frame(matrix(ncol = 4, nrow = 0))
-colnames(df) <- c("zmienna_a", "zmienna_b", "Wald_p_v",'Akaike')
+report <- data.frame(matrix(ncol = 4, nrow = 0))
+colnames(report) <- c('model','kryterium_AIC', 'McFadden', 'Cragg_Uhler')
 
-
-istotne = list()
-for (i in cols[1:length(cols)]){
-  for (j in cols[1:length(cols)]){
-    if ((i != 'CLAIM_FLAG')&(j != 'CLAIM_FLAG')){
-      if (i != j){
-        m <- glm(as.formula(paste('CLAIM_FLAG', "~", i,":",j)), data = dane_uczacy, family = binomial)
-        w_test <- waldtest(m)
-        #print(paste(i,j))
-      if (w_test$`Pr(>F)`[2] < 1e-15){
-        print(paste('istotna',i,j ,'pvalue:', format(w_test$`Pr(>F)`[2],  scientific = TRUE))[1])  
-        df[nrow(df) + 1,] = c(i, j, w_test$`Pr(>F)`[2], m$aic)
-     }
-    }
-  }
- }
+for (i in seq(1, 14, 1)){
+  print(i)
+  mname <-paste('m', i, sep="")
+  model = eval(parse(text = mname))
+  
+  kryterium_AIC <- c(model$aic)
+  McFadden<-pR2(model)[4]
+  Cragg_Uhler<-pR2(model)[6]
+  report[i,] <- c(mname,kryterium_AIC, McFadden, Cragg_Uhler)
 }
 
+round(report, 3)
+
+
+
+```
+### Test i ewaluacja finalnego modelu na danych 
+```{r}
+pred <- predict(m13, dane_testowy)
+
+pred_y <- as.numeric(pred > 0 )
+true_y <- as.numeric(dane_testowy$CLAIM_FLAG)-1
+
+# wskazania prawdziwie pozytywne
+true_pos <- (true_y == 1) & (pred_y == 1)
+# wskazania prawdziwie negatywne
+true_neg <- (true_y == 0) & (pred_y == 0)
+#wskazania fałszywie pozytywne
+false_pos <- (true_y == 0) & (pred_y == 1)
+#wskazania fałszywie negatywne
+false_neg <- (true_y==1)&(pred_y==0)
 
 ```
 
 
+### Dokładność
+Wyznaczenie wartości najpopularniejszej miary skuteczności modelu logitowego.
 
 
+### Macierz pomyłek
+
+```{r}
+conf_mat <- matrix(c(sum(true_pos), sum(false_pos),
+                   sum(false_neg), sum(true_neg)), 2, 2)
+
+colnames(conf_mat) <-c('yhat = 1', 'yhat = 0')
+rownames(conf_mat) <- c('y = 1', 'y = 0')
+
+conf_mat
+
+```
+### Miary na bazie macierzy pomyłek
+```{r}
+accuracy <- (sum(true_pos) + sum(true_neg)) / (length(pred))
+accuracy
+
+precision <- conf_mat[1, 1] / sum(conf_mat[,1])
+precision
+
+specifity <- conf_mat[1, 1] / sum(conf_mat[,1])
+specifity
+
+ppv <- 100*conf_mat[1,1]/(conf_mat[1,1]+ conf_mat[1,2])
+npv <- 100*conf_mat[2,2]/(conf_mat[2,1]+ conf_mat[2,2])
+
+df <- data.frame(matrix(ncol = 5, nrow = 0))
+colnames(df) <- c("dokładność", "czułość", 'specyficzność', 'PPV', 'NPV')
+df[1,] = c(accuracy, precision, specifity,ppv,npv)
+df
+```
+
+### Krzywa ROC
+
+```{r}
+idx <- order(-pred)
+recall <- cumsum(true_y[idx]==1)/sum(true_y == 1)
+specifity <- (sum(true_y == 0 ) - cumsum(true_y[idx] == 0)) / sum(true_y == 0)
+
+roc_df <- data.frame(recall = recall, specifity=specifity)
+
+ggplot(roc_df, aes(x=specifity, y=recall)) +
+  geom_line(color='blue') +
+  scale_x_reverse(expand = c(0, 0))+
+  scale_y_continuous(expand=c(0,0))+
+  geom_line(data=data.frame(x=(0:100)/100), aes(x=x, y=1-x),linetype='dotted',color='red')
+
+```
+### AUC - Area Under Curve
+```{r}
+sum(roc_df$recall[-1] * diff(1 - roc_df$specifity))
+```
 
