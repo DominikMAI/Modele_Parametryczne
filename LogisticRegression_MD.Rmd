@@ -384,37 +384,104 @@ summary(m13)$aic - summary(m16)$aic
 Zmienna pogarsza nasz model itd, jutro skoncze.
 
 
-### Interakcje
-
-
 
 # Najlepszy - najgorszy
 ```{r}
 summary(m1)$aic - summary(m13)$aic
+
 ```
+
+### Interakcje
+Następnie najlepszy model zostanie uzupełniony o zweryfikowane interakcje zachodzące pomiędzy zmiennymi.
+W procedurze wyszukiwania interakcji istotna jest eliminacja par współliniowych par zmiennych. 
+Do tego celu zostanie wykorzystany wspólczynnik podpicia wariancji - VIF. <br/>
+**VIF=1**: brak współliniowości predyktorów. <br/>
+**1<VIF<10**: występuje nieznaczna współliniowość predyktorów, warto rozważyć zmianę modelu. <br/>
+**VIF>10**: występuje silna współliniowość predyktorów, należy usunąć z modelu zmienną. <br/>
+
+```{r}
+#cols <- as.vector(colnames(dane[,-c(26,23)]))
+
+cols <- as.vector(colnames(dane)[6:length(colnames(dane))])
+df <- data.frame(matrix(ncol = 4, nrow = 0))
+colnames(df) <- c("zmienna_a", "zmienna_b", "Wald_p_v",'Akaike')
+
+istotne = list()
+for (i in cols[1:length(cols)]){
+
+  for (j in cols[1:length(cols)]){
+    
+    print(paste(i,j))
+    
+    if ((i != 'CLAIM_FLAG')&(j != 'CLAIM_FLAG')){
+      if (i != j){
+        
+        m <- glm(as.formula(paste('CLAIM_FLAG', "~INCOME+", i,":",j)), 
+                 data = dane_uczacy, 
+                 family = binomial)
+        
+        vif_t <- vif(m)
+        wspl <- as.numeric(vif_t[paste(i,':',j,sep='')])[1]
+        print(paste(wspl))
+        if (wspl <= 1.05){
+          w_test <- waldtest(m)
+          if (w_test$`Pr(>F)`[2] < 1){
+            print(paste('istotna',i,j ,'pvalue:', format(w_test$`Pr(>F)`[2],  scientific = TRUE))[1])  
+            df[nrow(df) + 1,] = c(i, j, w_test$`Pr(>F)`[2], m$aic)
+          }else{next}
+     } else{next}
+    }else{next}
+  }
+ }
+}
+
+```
+
+
+```{r}
+
+for (i in cols[1:length(cols)]){
+  print(paste(i))
+  for (j in cols[1:length(cols)]){
+    print(paste(j))
+    print(paste(i,j))
+    
+
+ }
+}
+
+
+```
+
+
+
+
+
+
+
+
+
 ### Ocena 
 ```{r}
 
 report <- data.frame(matrix(ncol = 4, nrow = 0))
-colnames(report) <- c('model','kryterium_AIC', 'McFadden', 'Cragg_Uhler')
+colnames(report) <- c('model','kryterium_AIC', 'McFadden_R2', 'Cragg_Uhler_R2')
 
 for (i in seq(1, 14, 1)){
-  print(i)
-  mname <-paste('m', i, sep="")
+  mname <- paste('m', i, sep="")
   model = eval(parse(text = mname))
   
   kryterium_AIC <- c(model$aic)
   McFadden<-pR2(model)[4]
   Cragg_Uhler<-pR2(model)[6]
-  report[i,] <- c(mname,kryterium_AIC, McFadden, Cragg_Uhler)
+  report[i,] <- c(mname,round(kryterium_AIC,3), round(McFadden,3), round(Cragg_Uhler,3))
 }
 
-round(report, 3)
-
-
-
+## Raport zbiorczy dla wszystkim wariantów modeli
+report[order(report$kryterium_AIC),]
 ```
 ### Test i ewaluacja finalnego modelu na danych 
+
 ```{r}
 pred <- predict(m13, dane_testowy)
 
@@ -432,13 +499,12 @@ false_neg <- (true_y==1)&(pred_y==0)
 
 ```
 
-
-### Dokładność
-Wyznaczenie wartości najpopularniejszej miary skuteczności modelu logitowego.
-
-
 ### Macierz pomyłek
-
+Macierz pomyłek jest kwadratową macierzą w której zliczywane są wyniki przewidywań klas:<br/>
+- prawdziwie pozytywna <br/>
+- fałszywie pozytywna <br/>
+- prawdziwie negatywna <br/>
+- fałszywie negatywna </br>
 ```{r}
 conf_mat <- matrix(c(sum(true_pos), sum(false_pos),
                    sum(false_neg), sum(true_neg)), 2, 2)
@@ -446,30 +512,35 @@ conf_mat <- matrix(c(sum(true_pos), sum(false_pos),
 colnames(conf_mat) <-c('yhat = 1', 'yhat = 0')
 rownames(conf_mat) <- c('y = 1', 'y = 0')
 
-conf_mat
-
+fourfoldplot(conf_mat, color = c("#CC6666", "#99CC99"),conf.level = 0, margin = 1, main = "Macierz pomyłek")
 ```
+
 ### Miary na bazie macierzy pomyłek
+**dokładność** - iloraz sumy poprawnie sklasyfikowanych próbek przez sum wszystkich próbek. <br/>
+**błąd** - iloraz sumy niepoprawnie sklasyfikowanych próbek przez sumę wszystkich**
+**precyzja** - 
+
+**
 ```{r}
 accuracy <- (sum(true_pos) + sum(true_neg)) / (length(pred))
-accuracy
+
+error <- (conf_mat[1, 2] + conf_mat[2,1]) / (length(pred))
 
 precision <- conf_mat[1, 1] / sum(conf_mat[,1])
-precision
 
 specifity <- conf_mat[1, 1] / sum(conf_mat[,1])
-specifity
 
 ppv <- 100*conf_mat[1,1]/(conf_mat[1,1]+ conf_mat[1,2])
 npv <- 100*conf_mat[2,2]/(conf_mat[2,1]+ conf_mat[2,2])
 
-df <- data.frame(matrix(ncol = 5, nrow = 0))
-colnames(df) <- c("dokładność", "czułość", 'specyficzność', 'PPV', 'NPV')
-df[1,] = c(accuracy, precision, specifity,ppv,npv)
+df <- data.frame(matrix(ncol = 6, nrow = 0))
+colnames(df) <- c('błąd', "dokładność", "czułość", 'specyficzność', 'PPV', 'NPV')
+df[1,] = c(error, accuracy, precision, specifity,ppv,npv)
 df
 ```
 
-### Krzywa ROC
+### Krzywa ROC - Krzywa charakterystyki roboczej odbiornika
+Krzywa rok pozwala zwizualizować skutecznośc klasyfikatora w oparciu o odsetek wskazań fałszywie pozytywnych oraz prawdziwie pozytywnych, wyliczanych poprzez przesunięcie progu decyzyjnego modelu regresji logistycznej(w tym przypadku).Przekątną krzywej rok możemy interpretować jako losowe zgadywanie klasyfikatora a skuteczność modeli klasyfikujących poniżej tej przekątnej jest uznawana za gorszą od zgadywania.
 
 ```{r}
 idx <- order(-pred)
@@ -486,6 +557,8 @@ ggplot(roc_df, aes(x=specifity, y=recall)) +
 
 ```
 ### AUC - Area Under Curve
+Na podstawie krzywej ROC możemy obliczyć miarę wyrażającą skuteczność klasyfikatora.
+W przypadku 'idealnego' modelu wartość AUC wynosiłaby 1. W przypadku modelu całkowicie losowego, wartość ta wyniesie 0.5.
 ```{r}
 sum(roc_df$recall[-1] * diff(1 - roc_df$specifity))
 ```
