@@ -401,33 +401,39 @@ Do tego celu zostanie wykorzystany wspólczynnik podpicia wariancji - VIF. <br/>
 
 ```{r}
 #cols <- as.vector(colnames(dane[,-c(26,23)]))
-
 cols <- as.vector(colnames(dane)[6:length(colnames(dane))])
-df <- data.frame(matrix(ncol = 4, nrow = 0))
-colnames(df) <- c("zmienna_a", "zmienna_b", "Wald_p_v",'Akaike')
+df <- data.frame(matrix(ncol = 5, nrow = 0))
+colnames(df) <- c("zmienna_a", "zmienna_b", "Wald_p_v",'Akaike', 'VIF')
 
 istotne = list()
 for (i in cols[1:length(cols)]){
 
   for (j in cols[1:length(cols)]){
-    
-    print(paste(i,j))
-    
-    if ((i != 'CLAIM_FLAG')&(j != 'CLAIM_FLAG')){
+
+    if ((i != 'CLAIM_FLAG') & (j != 'CLAIM_FLAG')){
       if (i != j){
+        skip_to_next <- FALSE
+        tryCatch(
+          m <- glm(as.formula(paste('CLAIM_FLAG', "~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+CAR_TYPE+REVOKED+URBANICITY+", i, ":", j)), 
+                 data = dane_uczacy, family = binomial),
+          error = function(w) { skip_to_next <<- TRUE})
+        if(skip_to_next) { next }
         
-        m <- glm(as.formula(paste('CLAIM_FLAG', "~INCOME+", i,":",j)), 
-                 data = dane_uczacy, 
-                 family = binomial)
-        
-        vif_t <- vif(m)
-        wspl <- as.numeric(vif_t[paste(i,':',j,sep='')])[1]
-        print(paste(wspl))
-        if (wspl <= 1.05){
-          w_test <- waldtest(m)
-          if (w_test$`Pr(>F)`[2] < 1){
+        ## w pelni skorelowane zmienne przechwytywane
+        skip_to_next <- FALSE
+        tryCatch(vif_t <- as.numeric(vif(m)[11]),error = function(e) { skip_to_next <<- TRUE})
+        if(skip_to_next) { next }
+
+        if ((!is.numeric(vif_t)) | (is.na(vif_t))) { next }
+
+        if (vif_t <= 1.5){
+          skip_to_next <- FALSE
+          tryCatch(w_test <- waldtest(m), error = function(e) { skip_to_next <<- TRUE})
+          if(skip_to_next) { next }
+          
+          if (w_test$`Pr(>F)`[2] < 0.05){
             print(paste('istotna',i,j ,'pvalue:', format(w_test$`Pr(>F)`[2],  scientific = TRUE))[1])  
-            df[nrow(df) + 1,] = c(i, j, w_test$`Pr(>F)`[2], m$aic)
+            df[nrow(df) + 1,] = c(i, j, w_test$`Pr(>F)`[2], m$aic, vif_t)
           }else{next}
      } else{next}
     }else{next}
@@ -435,32 +441,11 @@ for (i in cols[1:length(cols)]){
  }
 }
 
+
 ```
-
-
 ```{r}
-
-for (i in cols[1:length(cols)]){
-  print(paste(i))
-  for (j in cols[1:length(cols)]){
-    print(paste(j))
-    print(paste(i,j))
-    
-
- }
-}
-
-
+df
 ```
-
-
-
-
-
-
-
-
-
 ### Ocena 
 ```{r}
 
