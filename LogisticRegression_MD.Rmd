@@ -19,12 +19,13 @@ set.seed(1257) #set.seed(NULL) --> usunięcie "ziarna"
 
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-## Wstep
-to do list: \ 
- - interakcje -
- - część samochodow moze byc w rzeczywistosci zarejestrowana na osoby starsze ale uzytkowana przez młodych - którzy powodują kolizje
- -Jeszcze analizuje ale mysle, ze takie zalozenie ma sens, opieramy model na: dochodzie, fakcie bycia rodzicem, wieku i uprzednio otrzymanych punktach karnych. Pozostałe zmienne są pochodnymi tych cech.
+Etap modelowania oszacowania szansy wystąpienia kolizji drogowej i wystąpienia o odszkodowanie przez klienta w oparciu o dane dotyczące: <br/>
+- podstawowej metryki klienta<br/>
+- sytuacja w rodzinnaprywatnym,<br/>
+- statusu materialnego oraz pozycji społecznej klienta <br/>
+- historię ubezbieczenie samochodu klienta, <br/>
+Dostępne dane zostają ocenione w kontekście wpływu na ryzyko wystąpienia kolizji drogowej.
+Kolejne cechy zostały dobierane w oparciu o 
 
 ### Wczytanie danych
 ```{r}
@@ -32,10 +33,8 @@ to do list: \
 dane <- read.csv("./dane/po_imputacji.csv", sep=';',encoding = "UTF-8", dec = ',')
 dane <- dane[, -c(24)]
 ```
-```{r}
 
-```
-### Wstępne przetworzenie 
+### Wstępne przetworzenie zmiennych
 ```{r pressure, echo=FALSE}
 dane$CLAIM_FLAG <- as.factor(dane$CLAIM_FLAG)
 dane$HOMEKIDS <- as.factor(dane$HOMEKIDS)
@@ -57,7 +56,7 @@ dane$MVR_PTS_GRP[dane$MVR_PTS > 10] <- 3
 dane$MVR_PTS_GRP <- as.factor(dane$MVR_PTS_GRP)
 
 
-##Ad. model 4 - Nisko-wykwalifikowani vs wysoko wykfalifikowani
+##Ad. model 4 - Nisko-wykwalifikowani vs wysoko wykwalifikowani.
 dane$OCCUPATION_GRP <- 0
 
 dane$OCCUPATION_GRP[(dane$OCCUPATION=="Blue Collar") | 
@@ -84,8 +83,6 @@ dane$HOME_VAL_D[dane$HOME_VAL != 0] <- 1
 dane$HOME_VAL_D <- as.factor(dane$HOME_VAL_D)
 
 summary(dane)
-
-#cdplot(dane$INCOME, dane$CLAIM_FLAG, xlab = "dochód", ylab = "zadowolenie")
 sapply(dane, typeof)
 ```
 ### Podział na dwa zbiory - treningowy i uczący.
@@ -107,7 +104,9 @@ table(dane_uczacy$CLAIM_FLAG) / nrow(dane_uczacy)
 
 **Pierwsze wnioski i hipotezy:**
 - Zamożni rzadziej powodują wypadki, ale tylko do przedziału 22 018USD, dla kolejnych grup dochodowych liczba wypadkóW wzrasta \
+
 - Mężczyzni częściej powodują wypadki (pytanie czy to istotna różnica) \
+
 - Zdecydowanie więcej wypadków powodują osoby niebędące rodzicami \
 
 - Osoby będące w dolnych grupach wiekowych powodują więcej kolizji, ta tendencja spada wraz z wiekiem aż do grupy 48-55lat i następnie wzrasta w grupach \
@@ -118,11 +117,13 @@ table(dane_uczacy$CLAIM_FLAG) / nrow(dane_uczacy)
 
 - Widoczna jest również zależność pomiędzy wiekiem samochodu a częstościa występowania zdarzenia, wraz z wiekiem samochodu, maleje szansa na udział kolizji drogowej. \ 
 
-- Studenci i osoby nisko wykwalifikowane rzadziej biorą udział w kolizjach drogowych, może podział na dwie grupy ?
+- Studenci i osoby nisko wykwalifikowane rzadziej biorą udział w kolizjach drogowych.
 
+- Liczba dzieci wpływa na ryzyko udziału w kolizji drogowej przez rodziców.
+
+- 
 #### Iteracyjne budowanie
 ```{r}
-#select_if(dane, is.numeric)
 cols <- as.vector(colnames(dane[,-c(26,23)]))
 
 istotne = list()
@@ -138,7 +139,6 @@ for (c in cols[3:length(cols)]){
       #istotne <- append(istotne, c)
   } else{
       print(paste('nieistotna',c,'pvalue:', round(w_test$`Pr(>F)`[2], 2) ))
-      #print(summary(m)$coefficients)
   }
   }
   gc()
@@ -182,7 +182,7 @@ m3 <- glm(CLAIM_FLAG~INCOME+PARENT1, data = dane_uczacy, family = binomial)
 summary(m3)
 ```
 **Wniosek** <br/>
-Analizując parametr strukturalny $\beta_3$, wnioskujemy, że zachodzi odwrotna zależność pomiędzy faktem bycia samotnym rodzicem a szansą wystąpienia kolizji. Jeżli ktoś jest rodzicem, to zachodzi mniejsza szansa, że kierowca spowoduje kolizję <br/>.
+Analizując parametr strukturalny $\beta_3$, wnioskujemy, że zachodzi odwrotna zależność pomiędzy faktem bycia samotnym rodzicem a szansą wystąpienia kolizji. Jeżeli ktoś jest rodzicem, to zachodzi mniejsza szansa, że kierowca spowoduje kolizję <br/>.
 
 
 ### Model 4 - wiek
@@ -226,7 +226,6 @@ summary(m5)$aic - summary(m6)$aic
 **Wniosek** <br/>
 Analizując parametr strukturalny $\beta_6$, wnioskujemy, że nie zachodzi istotna zależność pomiędzy faktem bycią małżonkiem a szansą wystąpienia kolizji.<br/>
 
-
 ### Model 7 - użytkowanie prywatne/komercyjne samochodu
 W piątym modelu stawiamy hipotezę, że istnieje zależność pomiędzy faktem bycia małżenstwie a szansą zaistnienia kolizji.
 Zmienna **CAR_USE** jest zmienną dychotomiczną.
@@ -239,9 +238,10 @@ summary(m5)$aic - summary(m7)$aic
 ```
 **Wniosek**
 Zmienna MSTATUS powoduje utrate istotnosci wyrazu wolnego.
-Zmienna **CAR_USE** nie zostaje włączona do modelu, jej właczenie pozwala na obniżenie kryterium informacyjnego o 170.42 jednostek.
+Zmienna **CAR_USE** nie zostaje włączona do modelu, mimo, że jej właczenie pozwala na obniżenie kryterium informacyjnego o 170.42 jednostek.
 
 ### Model 8 - Cena samochodu
+W modelu 8 stawiamy hipotezę, że istnieje zależność pomiędzy ceną samochodu a szansą udziału w kolizji drogowej.
 ```{r}
 m8 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+BLUEBOOK, data = dane_uczacy, family = binomial)
 summary(m8)
@@ -265,10 +265,9 @@ summary(m9)
 summary(m8)$aic - summary(m9)$aic
 ```
 **Wniosek**
-Zmienna TIF poprawia nasz model zmniejszając wartość kryterium informacyjnego Akaike o 38.47.
+Zmienna TIF poprawia nasz model zmniejszając wartość kryterium informacyjnego Akaike o 15.053.
 Parametr strukturalny $\beta_9$zachowuje wysoki poziom istotności.
 Zmienna TIF zostaje włączona do modelu.
-
 
 ### Model 10 - typ samochodu
 Typ samochodu wiąże się z jego gabarytami, widocznością ciemnych pól widzenia i zakładamy, że może wypływać na zwiększoną szansę udziału w kolizji.
@@ -280,11 +279,11 @@ summary(m10)
 summary(m9)$aic - summary(m10)$aic
 ```
 **Wniosek**
-Ze względu na to, że zmienna CAR_TYPE znacznie obniża wartość kryterium informacyjnego, decydujemy o włączaniu jej do modelu.
-Zmienna obniża wartość kryterium informacyjnego Akaike o 233.37.
+Ze względu na to, że zmienna CAR_TYPE znacznie obniża wartość kryterium informacyjnego Akaikeo 288, decydujemy o włączeniu jej do modelu.
+
 
 ### Model 11 - odebranie prawa jazdy w ciagu ostatnich 7 lat.
-Weryfikacja czy fakt odebrania prawa jazdy zwiększa szanse na spowodowanie / udział w kolizji
+Weryfikacja czy fakt odebrania prawa jazdy zwiększa szanse na spowodowanie / udział w kolizji.
 
 ```{r}
 m11 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+REVOKED, data = dane_uczacy, family = binomial)
@@ -293,9 +292,10 @@ summary(m11)
 ```{r}
 summary(m10)$aic - summary(m11)$aic
 ```
-
 **Wniosek**
-Ze względu na to, że zmienna REVOKED znacznie podwyższa wartość kryterium informacyjnego, decydujemy o nie włączaniu jej do modelu.
+Ze względu na to, że zmienna REVOKED obniża wartość kryterium informacyjnego, decydujemy o włączaniu jej do modelu. Fakt utraty prawa jazdy zwiększa szanse na 
+udział w kolizji w pszyszłości.
+
 
 ### Model 12 - wiek samochodu
 ```{r}
@@ -304,7 +304,6 @@ summary(m12)
 ```
 ```{r}
 summary(m11)$aic - summary(m12)$aic
-
 ```
 **Wnioski**
 Parametr wieku samochodu jest istotny statystycznie jednak wprowadzenie go do modelu tylko nieznacznie obniża wartość kryterium informacyjnego Akaike. W rezultacie nie zostaje włączony do modelu.
@@ -317,15 +316,14 @@ summary(m13)
 ```
 ```{r}
 summary(m11)$aic - summary(m13)$aic
-
 ```
 **Wniosek**
-Zmienna charakteryzująca jednostke osadniczą pozwoli
-Wykorzystanie zmiennej charakteryzującej jednostkę osadniczą pozwoliło uzyskać model, który uzyskał wartość kryterium Akaike o 597 punktów niższą względem najlepszego dotychczasowego modelu.
+Wykorzystanie zmiennej charakteryzującej jednostkę osadniczą pozwoliło uzyskać model, który uzyskał wartość kryterium Akaike o 591.8558 punktów niższą względem najlepszego dotychczas modelu.Parametry strukuralne są istotne. 
+Zmienna zostaje włączona do modelu.
 
 
 ### Model 14 -  typ zatrudnienia
-Zakładamy, że osoby zatrudniony w zawodach wymagających wysokich kompetencji.
+Zakładamy, że osoby zatrudnieni w zawodach wymagających wysokich kompetencji rzadziej biorą udział w kolizjach drogowych.
 ```{r}
 m14 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+REVOKED+URBANICITY+OCCUPATION_GRP, data = dane_uczacy, family = binomial)
 summary(m14)
@@ -433,17 +431,14 @@ df$Wald_p_v <- as.numeric(df$Wald_p_v)
 df$Akaike <- as.numeric(df$Akaike)
 df$VIF <- as.numeric(df$VIF)
 
-summary(df)
-
-
 # Na podstawie posortowanej tabeli możemy odczytać najlepsze modele z interakcjami.
-df[order(df$VIF, df$Akaike),]
+df[order(df$VIF, df$Akaike), ]
 ```
 ### Finalny model z interakcją
+W sykrypcie automatycznej selekcji najlepszego modelu z interakcją zidentyfikowaliśmy najlepszą kombinację predyktorów tworzących interakcję.
 ```{r}
 m17 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+REVOKED+URBANICITY+TRAVTIME:MVR_PTS, data = dane_uczacy, family = binomial)
 summary(m17)
-
 ```
 ```{r}
 summary(m13)$aic - summary(m17)$aic
@@ -454,7 +449,6 @@ summary(m13)$aic - summary(m17)$aic
 ```{r}
 summary(m1)$aic - summary(m17)$aic
 ```
-
 
 ### Ewaluacja modeli
 ```{r}
@@ -474,6 +468,8 @@ for (i in seq(1, 17, 1)){
 ## Raport zbiorczy dla wszystkim wariantów modeli
 report[order(report$kryterium_AIC),]
 ```
+**Wniosek: ** Zgodnie z założeniem, model nr 17 okazał się najlepszym modelem i zostanie ewaluowany w kolejnych krokach.
+
 ### Test i ewaluacja finalnego modelu na danych 
 ```{r}
 pred <- predict(m17, dane_testowy)
@@ -499,21 +495,20 @@ Macierz pomyłek jest kwadratową macierzą w której zliczywane są wyniki prze
 - fałszywie negatywna </br>
 ```{r}
 conf_mat <- matrix(c(sum(true_pos), sum(false_pos),
-                   sum(false_neg), sum(true_neg)), 2, 2)
+                    sum(false_neg), sum(true_neg)), 2, 2)
 
 colnames(conf_mat) <-c('yhat = 1', 'yhat = 0')
 rownames(conf_mat) <- c('y = 1', 'y = 0')
 
 fourfoldplot(conf_mat, color = c("#CC6666", "#99CC99"),conf.level = 0, margin = 1, main = "Macierz pomyłek")
 ```
-Model ma tendencje do popełniania błędów fałszywie pozytywnych co oznacza, że model jest nadmiernie czuły na klase negatywną.
+Model ma tendencję do popełniania błędów fałszywie pozytywnych co oznacza, że model jest nadmiernie czuły na klase negatywną.
 
 ### Miary na bazie macierzy pomyłek
 **dokładność -** - iloraz sumy poprawnie sklasyfikowanych próbek przez sum wszystkich próbek. <br/>
 **błąd -** iloraz sumy niepoprawnie sklasyfikowanych próbek przez sumę wszystkich </br>
 **czułość - **zdolność modelu do wychwytywania przypadków pozytywnych<br/>
 **swoistość - ** zdolność modelu do wychwytywania przypadków negatywnych<br/>
-
 **
 ```{r}
 accuracy <- (sum(true_pos) + sum(true_neg)) / (length(pred))
@@ -529,10 +524,9 @@ npv <- 100*conf_mat[2,2]/(conf_mat[2,1]+ conf_mat[2,2])
 
 df <- data.frame(matrix(ncol = 6, nrow = 0))
 colnames(df) <- c('błąd', "dokładność", "czułość", 'specyficzność', 'PPV', 'NPV')
-df[1,] = c(error, accuracy, precision, specifity,ppv,npv)
+df[1,] = c(error, accuracy, recall, specifity, ppv,npv)
 df
 ```
-
 **Wniosek**Decyzyjność modelu wskazuje na wyższą czułość w zakresie klasy negatywnej. Wynika to również z faktu, że jest liczniejsza. Całościowo model osiagnął skuteczność na poziomie 77.1%.
 
 ### Krzywa ROC - Krzywa charakterystyki roboczej odbiornika
@@ -549,8 +543,10 @@ ggplot(roc_df, aes(x=specifity, y=recall)) +
   geom_line(color='blue') +
   scale_x_reverse(expand = c(0, 0))+
   scale_y_continuous(expand=c(0,0))+
-  geom_line(data=data.frame(x=(0:100)/100), aes(x=x, y=1-x),linetype='dotted',color='red')
-
+  geom_line(data=data.frame(x=(0:100)/100), 
+            aes(x=x, y=1-x),
+            linetype='dotted',
+            color='red')
 ```
 ### AUC - Area Under Curve
 Na podstawie krzywej ROC możemy obliczyć miarę wyrażającą skuteczność klasyfikatora.
@@ -558,6 +554,6 @@ W przypadku 'idealnego' modelu wartość AUC wynosiłaby 1. W przypadku modelu c
 ```{r}
 sum(roc_df$recall[-1] * diff(1 - roc_df$specifity))
 ```
-**Wniosek**:Wartość AUC pozwala stwierdzić, że udało się uzyskać klasyfikator na akceptowalnym poziomie.
+**Wniosek**: Wartość AUC pozwala stwierdzić, że udało się uzyskać klasyfikator na akceptowalnym poziomie.
 
 
