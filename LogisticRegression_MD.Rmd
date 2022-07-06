@@ -1,9 +1,12 @@
 ---
 title: "Roszczenie z tytułu ubezpieczenia samochodu"
+subtitle: "Rozdział 2 pracy 'Modelowanie ryzyka ubezpieczeń ja nie wiem, Piotrek'"
 description: | 
   Szacowanie ryzyka roszczeń z tytułu udziału z wykorzystaniem modelu logitowego
 author:
-- Dominik Mielczarek
+name: Dominik Mielczarek
+affiliation: N42-12
+
 date: "`r format(Sys.time(), '%d %B %Y')`"
 
 abstract: |
@@ -13,7 +16,6 @@ abstract: |
   W ostatnim kroku decyzyjność modelu poddano ewaluacji pod kątem skuteczności w klasyfikacji.
   Porównano dodatnią i ujemną zdolność predykcyjną. 
   
-
 output:
   html_document: default
   pdf_document: default
