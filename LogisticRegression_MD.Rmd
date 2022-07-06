@@ -1,5 +1,7 @@
 ---
-title: "Szacowanie ryzyka udziału w kolizji drogowej z wykorzystaniem modelu logitowego"
+title: "Roszczenie z tytułu ubezpieczenia samochodu"
+description: | 
+  Szacowanie ryzyka roszczeń z tytułu udziału z wykorzystaniem modelu logitowego
 author:
 - Dominik Mielczarek
 date: "`r format(Sys.time(), '%d %B %Y')`"
