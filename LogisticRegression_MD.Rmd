@@ -300,8 +300,8 @@ Ze względu na to, że zmienna CAR_TYPE znacznie obniża wartość kryterium inf
 
 
 ### Model 11 - odebranie prawa jazdy w ciagu ostatnich 7 lat.
-Weryfikacja czy fakt odebrania prawa jazdy zwiększa szanse na spowodowanie / udział w kolizji.
-
+Weryfikacja czy fakt odebrania prawa jazdy w przeszłości zwiększa szanse na spowodowanie / udziału w kolizji drogowej.
+Cecha REVOKED jest zmienną dychotomiczną.
 ```{r}
 m11 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+REVOKED, data = dane_uczacy, family = binomial)
 summary(m11)
@@ -313,6 +313,7 @@ summary(m10)$aic - summary(m11)$aic
 Ze względu na to, że zmienna REVOKED obniża wartość kryterium informacyjnego, decydujemy o włączaniu jej do modelu. Fakt utraty prawa jazdy zwiększa szanse na udział w kolizji w pszyszłości.
 
 ### Model 12 - wiek samochodu
+W modelu 12 weryfikujemy założenie, że zmienna wiek samochodu ma silny wpływ na ryzyko udziału w kolizji i poprawi nasz model.
 ```{r}
 m12 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+REVOKED+CAR_AGE, data = dane_uczacy, family = binomial)
 summary(m12)
@@ -462,6 +463,7 @@ summary(m13)$aic - summary(m17)$aic
 ```{r}
 summary(m1)$aic - summary(m17)$aic
 ```
+**Wniosek - ** W zastosowanym scenariuszu budowania modelu udało się obniżyc wartość kryterium Akaike o 1417.793 w stosunku do modelu podstawowego z jednym predyktorem - dochód.
 
 ### Ewaluacja modeli
 ```{r}
@@ -519,10 +521,12 @@ fourfoldplot(conf_mat, color = c("#CC6666", "#99CC99"),conf.level = 0, margin = 
 Model ma tendencję do popełniania błędów fałszywie pozytywnych co oznacza, że model jest nadmiernie czuły na klase negatywną.
 
 ### Miary na bazie macierzy pomyłek
-**dokładność -** - iloraz sumy poprawnie sklasyfikowanych próbek przez sum wszystkich próbek. <br/>
-**błąd -** iloraz sumy niepoprawnie sklasyfikowanych próbek przez sumę wszystkich </br>
-**czułość - **zdolność modelu do wychwytywania przypadków pozytywnych<br/>
-**swoistość - ** zdolność modelu do wychwytywania przypadków negatywnych<br/>
+**dokładność -** - iloraz sumy poprawnie sklasyfikowanych próbek przez sum wszystkich próbek. $\frac{TP+PN}{N}$<br/>
+**błąd -** iloraz sumy niepoprawnie sklasyfikowanych próbek przez sumę wszystkich $\frac{FP+FN}{N}$</br>
+**czułość - **zdolność modelu do wychwytywania przypadków pozytywnych $\frac{PP}{PP+FN}$<br/>
+**swoistość - ** zdolność modelu do wychwytywania przypadków negatywnych $\frac{PN}{FP+PN}$<br/>
+**PPV -** Wartość predykcyjną dodatnią opisuje zależność między liczbą wyników prawdziwie dodatnich (PP), a ogólną liczbą wyników dodatnich: prawdziwie dodatnich (PP) i fałszywie dodatnich (FP) $\frac{PP}{PP+FP}$ <br/>
+**NPV - **Wartość predykcyjną ujemną opisuje zależność między liczbą wyników prawdziwie ujemnych (PN), a ogólną liczbą wyników ujemnych: prawdziwie ujemnych (PN) i fałszywie ujemnych (FN) $\frac{PN}{PN+FN}$: -
 
 ```{r}
 accuracy <- (sum(true_pos) + sum(true_neg)) / (length(pred))
@@ -539,7 +543,7 @@ npv <- 100*conf_mat[2,2]/(conf_mat[2,1]+ conf_mat[2,2])
 df <- data.frame(matrix(ncol = 6, nrow = 0))
 colnames(df) <- c('błąd', "dokładność", "czułość", 'specyficzność', 'PPV', 'NPV')
 df[1,] = c(error, accuracy, recall, specifity, ppv,npv)
-df
+round(df,3)
 ```
 **Wniosek**Decyzyjność modelu wskazuje na wyższą czułość w zakresie klasy negatywnej. Wynika to również z faktu, że jest liczniejsza. Całościowo model osiagnął skuteczność na poziomie 77.1%.
 
