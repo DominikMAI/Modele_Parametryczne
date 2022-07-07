@@ -576,10 +576,9 @@ Finalnie rozkład ocen modelu zostaje oceniony z 95% przedziałem ufności.
 
 ```{r}
 AUC_mf <-c()
-for (i in seq(1,100,1)){
-  
-  set.seed(sample(1:5000, 1))
-  
+set.seed(NULL)
+for (i in seq(1,1500,1)){
+
   n <- nrow(dane)
   liczby_losowe <- sample(c(1:n), round(0.7*n), replace = FALSE)
   
@@ -600,7 +599,6 @@ for (i in seq(1,100,1)){
   roc_df <- data.frame(recall = recall, specifity=specifity)
 
   AUC <- sum(roc_df$recall[-1] * diff(1 - roc_df$specifity))
-
   AUC_mf <- append(AUC_mf, AUC)
 }
 
