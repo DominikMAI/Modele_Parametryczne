@@ -613,7 +613,7 @@ AUC_mf <- as.data.frame(AUC_mf)
 
 ##plot
 ggplot(AUC_mf, aes(AUC_mf)) + 
- geom_histogram(bins=5,colour="black", fill="white")+
+ geom_histogram(bins=15,colour="black", fill="white")+
 
   geom_vline(aes(xintercept=mean(unlist(AUC_mf))),
             color="blue", linetype="dashed", size=1) + 
