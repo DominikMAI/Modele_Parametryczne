@@ -1,0 +1,354 @@
+---
+title: "Konstrukcja modelu prawdopodobieństwa wystąpienia szkody oraz średniej wartości szkody na potrzeby oszacowania ryzyka ubezpieczeniowego"
+subtitle: "Model średniej szkody"
+description: | 
+  Szacowanie wartości szkody z wykorzystaniem uogólnionego modelu liniowego  
+author:
+name: Piotr Sulewski
+affiliation: N42-12
+
+date: "10 lipiec 2022"
+
+output:
+  html_document: default
+  pdf_document: default
+  
+---
+
+
+
+```{r setup, include=FALSE}
+library("car") # funkcja vif()
+library("ggplot2") # wykresy - funkcja ggplot()
+library("pscl") #pseudo-R2 funkcja pR2()
+library("lmtest") #testy LR i Walda globalne
+
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+### Wczytanie danych
+```{r}
+data <- data.frame(read.csv("./dane/po_imputacji.csv", sep=';', encoding = "UTF-8", dec = ','))[,-1]
+```
+
+### Konwersja typów zmiennych
+```{r}
+data$PARENT1 <- as.logical(data$PARENT1)
+data$MSTATUS <- as.logical(data$MSTATUS)
+data$GENDER <- as.factor(data$GENDER)
+data$EDUCATION <- as.factor(data$EDUCATION)
+data$OCCUPATION <- as.factor(data$OCCUPATION)
+data$CAR_USE <- as.factor(data$CAR_USE)
+data$CAR_TYPE <- as.factor(data$CAR_TYPE)
+data$RED_CAR <- as.logical(data$RED_CAR)
+data$REVOKED <- as.logical(data$REVOKED)
+data$CLAIM_FLAG <- as.logical(data$CLAIM_FLAG)
+data$URBANICITY <- as.factor(data$URBANICITY)
+data$OG_DATA <- as.logical(data$OG_DATA)
+```
+
+
+### Wybór grup referencyjnych dla zmiennych jakościowych
+```{r}
+data$OCCUPATION <- relevel(data$OCCUPATION, ref='Blue Collar')
+data$CAR_USE <- relevel(data$CAR_USE, ref='Private')
+data$EDUCATION <- relevel(data$EDUCATION, ref='<High School')
+data$GENDER <- relevel(data$GENDER, ref='F')
+data$CAR_TYPE <- relevel(data$CAR_TYPE, ref='SUV')
+data$URBANICITY <- relevel(data$URBANICITY, ref='Highly Urban/ Urban')
+```
+
+Jako grupę referencyjną dla każdej ze zmiennych wybrano wariant najczęściej występujący w zbiorze danych. Wyjątkiem jest zmienna opisująca poziom edukacji, w przypadku której zdecydowano jako grupę referencyjną wybrać tę o najniższym wykształceniu.
+
+### Podział zbioru na zestaw treningowy i testowy
+Dane podzielono na zbiór uczący, na podstawie którego szacowane będą modele oraz zbiór testowy, który zostanie wykorzystano do ewaluacji modeli. Ponadto zmiennej X przypisano tę część zbioru uczącego, która zawiera zmienne objaśniające oraz znacznik imputacji (OG_data), natomiast zmiennej Y kolumnę CLM_AMT zawierającą wartość szkody.
+
+```{r}
+set.seed(1257)
+n <- nrow(data)
+random_nums <- sample(c(1:n), round(0.7*n), replace = FALSE)
+data_train <- data[random_nums,]
+data_test <- data[-random_nums,]
+
+
+X <- subset(data_train[data_train$CLAIM_FLAG == TRUE,], select=-c(ID, CLM_AMT, CLAIM_FLAG))
+Y <- data_train[data_train$CLAIM_FLAG == TRUE,]['CLM_AMT']
+```
+
+### Modele z jedną zmienną objaśniającą (rozkład gamma)
+
+Do modelowania średniej szkody w ubezpieczeniach najczęściej wykorzystywany jest rozkład gamma lub rozkład odwrotny gaussowski. W celu uzyskania pożądanych właściwości interpretacyjnych modelu zastosowano logarytmiczną funkcję wiążącą.
+
+Proces modelowania rozpoczęto od weryfikacji istnienia zależności pomiędzy modelowaną zmienną a każdym z potencjalnych predyktorów w modelach z jedną zmienną objaśniającą i rozkładem gamma.
+
+```{r}
+for (n in names(X)) {
+  model_x <- glm(CLM_AMT ~ get(n), data=c(Y, X), family=Gamma(link="log"))
+  cat(n, '\n')
+  print(summary(model_x)$coefficients)
+  cat('AIC: ', model_x$aic)
+  cat('\n\n')
+}
+```
+Na podstawie uzyskanych wyników stwierdzono występowanie istotnej zależności pomiędzy wartością szkody a płcią, przeznaczeniem pojazdu, wartością pojazdu oraz rodzajem pojazdu (Panel Truck vs. SUV oraz VAN vs. SUV na granicy istotności). Poszczególne odele wykazały, że:
+- wartość szkody jest przeciętnie 1,15 razy wyższa, kiedy ubezpieczony jest mężczyzną,
+- wartość szkody jest przeciętnie 1,20 razy wyższa, kiedy pojazd wykorzystywany jest w celach komercyjnych,
+- wartość szkody jest przeciętnie 1,22 razy wyższa, wraz ze wzrostem wartości pojazdu o $10000,
+- wartość szkody jest przeciętnie 1,42 razy wyższa, kiedy ubezpieczony pojazd to furgonetka (Panel Truck) i 1,26 razy wyższa kiedy pojazd to VAN w porównaniu do pojazdów typu SUV.
+
+Na podstawie wartości kryterium informacyjnego Akaike stwierdzono, że zmienną noszącą w sobie najwięcej informacji w kontekście wyjaśniania wartości szkody jest wartość pojazdu (BLUEBOOK). W przypadku tej zmiennej AIC jest najniższe i wynosi 36257.68.
+
+Warto również zwrócić uwagę na zmienną OG_data, która okazała się być istotnie różna od 0. Obserwacje, w których występowały braki danych charakteryzowały się przeciętnie 15.8% niższą wartością szkody w porównaniu do pozostałych obserwacji.
+
+### Modele z jedną zmienną objaśniającą (rozkład odwrotny gaussowski)
+Przed przejściem do budowy bardziej skomplikowanych modeli zweryfikowano, czy zmiana rozkładu na odwrotny gaussowski poprawi wartość kryterium informacyjnego. W tym celu ponownie oszacowano modele z jedną zmienną objaśniającą.
+
+```{r}
+for (n in names(X)) {
+  model_x <- glm(CLM_AMT ~ get(n), data=c(Y, X), family=inverse.gaussian(link="log"))
+  cat(n, '\n')
+  print(summary(model_x)$coefficients)
+  cat('AIC: ', model_x$aic)
+  cat('\n\n')
+}
+```
+We wszystkich przypadkach wybór rozkładu odwrotnego gaussowskiego skutkował spadkiem kryterium AIC, dlatego zdecydowano o zastosowaniu tego rozkładu w kolejnych modelach.
+
+### Przekształcenie wybranych zmiennych
+
+Analiza wykresu średniej szkody względem liczby przepracowanych lat sugerowała, że może istnieć pomiędzy zmiennymi istotna zależność. W tym celu stworzono nową zmienną dychotomiczną YOJ_2 dzielącą obserwacje na takie, gdzie wartość zmiennej YOJ nie przekracza 6 lat oraz gdzie wynosi 7 lat lub więcej.
+
+```{r}
+X$YOJ_2 <- relevel(as.factor(sapply(X$YOJ, function(x) ifelse(x > 6, '7 or more', '6 or less'))), ref='6 or less')
+```
+
+
+```{r}
+model_yoj <- glm(CLM_AMT ~ YOJ, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_yoj)$coefficients)
+cat('AIC: ', model_yoj$aic)
+cat('\n\n')
+
+model_yoj_2 <- glm(CLM_AMT ~ YOJ_2, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_yoj_2)$coefficients)
+cat('AIC: ', model_yoj_2$aic)
+cat('\n\n')
+```
+Dla nowo utworzonej zmiennej YOJ_2 wartość p wyniosła 0.20 i tym samym nie ma podstaw do stwierdzenia istotnego wpływu tej zmiennej na średnią wartość szkody. 
+
+Ponieważ modele z jedną zmienną objaśniającą wykazały istnienie różnicy w wartości szkody pomiędzy samochodami typu Panel Truck i VAN, zdecydowano o utworzeniu nowej zmiennej dychotomicznej CAR_TYPE_2 z wariantami 'Panel Truck/Van' oraz 'other' i zbadano jej istotność w kontekście wyjaśniania średniej wartości szkody.
+
+```{r}
+X$CAR_TYPE_2 <- relevel(as.factor(sapply(as.character(X$CAR_TYPE), function(x) ifelse(x %in% c('Panel Truck', 'Van'), 'Truck/Van', 'other'))), ref='other')
+```
+
+```{r}
+model_car_type <- glm(CLM_AMT ~ CAR_TYPE, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_car_type)$coefficients)
+cat('AIC: ', model_car_type$aic)
+cat('\n\n')
+
+model_car_type_2 <- glm(CLM_AMT ~ CAR_TYPE_2, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_car_type_2)$coefficients)
+cat('AIC: ', model_car_type_2$aic)
+cat('\n\n')
+```
+
+Na podstawie powyższych wyników stwierdzono istotną zależność pomiędzy zmienną CAR_TYPE_2 a średnią wartością szkody. Szkody w przypadku pojazdów typu Panel Truck/Van są przeciętnie 1.31 razy wyższe niż w przypadku pozostałych pojazdów.
+
+### Modele z wieloma zmiennymi objaśniającymi
+
+Analiza wyników uzyskanych dla modeli z jedną zmienną objaśniającą stwarza podstawy do przypuszczenia, że wszystkie zmienne, które okazały się istotne, mogą tak naprawdę odzwierciedlać przede wszystkim zmianę wartości pojazdu. Pojazdy służące do przewozu towarów są wykorzystywane zazwyczaj w celach komercyjnych i są też droższe od pozostałych. Są one też częściej prowadzone przez mężczyzn. Jak stwierdzono wcześniej, najlepiej dopasowaną zmienną objaśniającą była zmienna opisująca wartość pojazdu, co jest również merytorycznie uzasadnione, jako że uszkodzenia droższych pojazdów zazwyczaj wiążą się z wyższymi wartościami odszkodowań. 
+
+Poniżej ponownie oszacowano model ze zmienną BLUEBOOK, który jako najprostszy z modeli będzie stanowił punkt odniesienia przy porównaniach z bardziej skomplikowanymi modelami.
+
+```{r}
+model_1 <- glm(CLM_AMT ~ BLUEBOOK, data=c(Y,X), family=inverse.gaussian(link="log"))
+summary(model_1)
+```
+Ponieważ wcześniej zinterpretowano model bazujący na rozkładzie gamma, dokonano ponownej interpretacji modelu ze zmienną BLUEBOOK jako jedynym predyktorem, tym razem bazującego na rozkłądzie odwrotnym gaussowskim. Wg nowego modelu wartość szkody jest przeciętnie 1,24 razy wyższa, wraz ze wzrostem wartości pojazdu o $10000.
+
+Próbę uzyskania lepszego modelu wykorzystującego większą liczbę predyktorów rozpoczęto od oszacowania modelu zawierającego wszystkie zmienne, które indywidualnie okazały się istotnie wpływać na wartość szkody.
+
+```{r}
+model_x <- glm(CLM_AMT ~ GENDER + CAR_USE + BLUEBOOK + CAR_TYPE_2, data=c(Y,X), family=inverse.gaussian(link="log"))
+summary(model_x)
+```
+Zgodnie z wcześniejszymi przypuszczeniami, zmienne GENDER, CAR_USE oraz CAR_TYPE_2 nie wnoszą dodatkowej istotnej informacji w modelu, w którym zawarto już zmienną BLUEBOOK. Żadna z dodatkowych zmiennych nie okazała się być istotna, a wartość AIC uległa zwiększeniu "karząc" model za nieuzasadnione zwiększenie liczby predyktorów.
+
+W kolejnym kroku usunięto zmienną o najwyższej wartości p - CAR_TYPE_2.
+
+```{r}
+model_x <- glm(CLM_AMT ~ GENDER + CAR_USE + BLUEBOOK, data=c(Y,X), family=inverse.gaussian(link="log"))
+summary(model_x)
+```
+Usunięcie zmiennej CAR_TYPE_2 nie spowodowało istotnych zmian w modelu. W dalszym ciągu zmienne inne niż BLUEBOOK nie są statystycznie istotne.
+
+Poniżej oszacowano model bez zmiennej GENDER o najwyższej wartości p.
+
+```{r}
+model_x <- glm(CLM_AMT ~ CAR_USE + BLUEBOOK, data=c(Y,X), family=inverse.gaussian(link="log"))
+summary(model_x)
+```
+Usunięcie kolejnej zmiennej również nie wpłynęło na istotną poprawę jakości modelu. Zmienna CAR_USE nadal pozostaje nieistotna.
+
+```{r}
+plot(model_1, 1:6)
+```
+
+Powyżej przedstawiono wykresy diagnostyczne dla modelu 1 ze zmienną BLUEBOOK jako jedynym predyktorem. Stwierdzono występowanie wartości wyraźnie odstających od pozostałych (1218, 805) i podjęto decyzję o ich usunięciu, ponieważ pojedyncze duże szkody mogą utrudniać wykrycie związków pomiędzy zmiennymi.
+
+Aby zachować porównywalność kryterium AIC po usunięciu ww. obserwacji, poniżej ponownie oszacowano model z jedną zmienną objaśniającą BLUEBOOK, z którym będą poróWnywane kolejne modele.
+
+```{r}
+model_1_out <- glm(CLM_AMT ~ BLUEBOOK, data=c(Y,X), family=inverse.gaussian(link="log"), subset=-c(1218, 805))
+summary(model_1_out)
+```
+
+### Modele z interakcjami
+
+W kolejnym kroku zbudowano modele ze zmienną BLUEBOOK w interakcji z poszczególnymi pozostałymi zmiennymi.
+
+```{r}
+for (c in names(X)) {
+  print(c)
+  if (c != 'BLUEBOOK') {
+    tryCatch({
+      model_x <- glm(CLM_AMT ~ BLUEBOOK * get(c), data=c(Y,X), family=inverse.gaussian(link="log"), subset=-c(1218, 805))
+      print(summary(model_x)$coefficients)
+      cat('AIC: ', model_x$aic)
+      cat('\n\n')
+    }, error=function(cond) {cat('Error occured for ', c, '\n')})
+  }
+}
+```
+Modelem o największym potencjale predykcyjnym spośród oszacowanych powyżej okazał się model zawierający zmienne BLUEBOOK i MSTATUS oraz interakcję pomiędzy nimi. Dla większej czytelności poniżej oszacowano wyłącznie ww. model i oznaczono go jako model nr 2.
+
+
+```{r}
+model_2_out <- glm(CLM_AMT ~ BLUEBOOK*MSTATUS, data=c(Y,X), family=inverse.gaussian(link="log"), subset=-c(1218, 805))
+summary(model_2_out)
+```
+Wszystkie parametry w powyższym modelu są statystycznie istotne, a wartość kryterium AIC spadła z 36038 do 36026. 
+
+Poniżej oszacowano wiele modeli zawierających zmienną BLUEBOOK oraz dwie inne zmienne we wzajemnej interakcji.
+
+```{r, results='hide'}
+inter_results <- data.frame(matrix(nrow=1, ncol=3))
+names(inter_results) <- c('AIC', 'Col 1', 'Col 2')
+inter_cols <- names(X)
+inter_cols <- inter_cols[! inter_cols %in% c('OG_DATA', 'BLUEBOOK')]
+
+for (c in inter_cols) {
+  for (d in inter_cols) {
+    if (c != d) {
+      tryCatch({
+        model_x <- glm(CLM_AMT ~ BLUEBOOK + get(c)*get(d), data=c(Y,X), family=inverse.gaussian(link="log"), subset=-c(1218, 805))
+        inter_results <- rbind(inter_results, c(model_x$aic, c, d))
+        #cat(model_x$aic, ' ', c, ':', d, '\n')
+      }, error=function(cond) {cat('Error occured for ', c, ' and ', d, '\n')})
+    }
+  }
+  inter_cols <- inter_cols[! inter_cols %in% c(c)]
+}
+inter_results <- na.omit(inter_results)
+inter_results$AIC <- as.numeric(inter_results$AIC)
+```
+
+```{r}
+head(inter_results[order(inter_results$AIC),])
+```
+
+Żaden z uzyskanych modeli nie pozwolił na obniżenie wartości kryterium AIC. Tym samym modele te nie będą dalej analizowane.
+
+W kolejnym kroku oszacowano modele ze zmiennymi BLUEBOOK i MSTATUS we wzajemnej interakcji oraz z dodatkowymi dwiema zmiennymi również w interakcji.
+
+```{r, results='hide'}
+inter_results <- data.frame(matrix(nrow=1, ncol=3))
+names(inter_results) <- c('AIC', 'Col 1', 'Col 2')
+inter_cols <- names(X)
+inter_cols <- inter_cols[! inter_cols %in% c('OG_DATA', 'BLUEBOOK', 'MSTATUS')]
+
+for (c in inter_cols) {
+  for (d in inter_cols) {
+    if (c != d) {
+      tryCatch({
+        model_x <- glm(CLM_AMT ~ BLUEBOOK*MSTATUS + get(c)*get(d), data=c(Y,X), family=inverse.gaussian(link="log"), subset=-c(1218, 805))
+        inter_results <- rbind(inter_results, c(model_x$aic, c, d))
+        #cat(model_x$aic, ' ', c, ':', d, '\n')
+      }, error=function(cond) {cat('Error occured for ', c, ' and ', d, '\n')})
+    }
+  }
+  inter_cols <- inter_cols[! inter_cols %in% c(c)]
+}
+inter_results <- na.omit(inter_results)
+inter_results$AIC <- as.numeric(inter_results$AIC)
+```
+
+```{r}
+head(inter_results[order(inter_results$AIC),])
+```
+Tym razem uzyskano modele o niższej wartości kryterium AIC i zostaną one poddane dalszej analizie. Poniżej przedstawiono wyniki oszacowania dwóch najlepszych modeli zawierających oprócz zmiennych BLUEBOOK i MSTATUS również zmienne HOMEKIDS i CLM_FREQ w interakcji (model 3) oraz zmienne CAR_USE i TIF w interakcji (model 4).
+
+```{r}
+model_3_out <- glm(CLM_AMT ~ BLUEBOOK*MSTATUS + HOMEKIDS*CLM_FREQ, data=c(Y,X), family=inverse.gaussian(link="log"), subset=-c(1218, 805))
+summary(model_3_out)
+```
+```{r}
+model_4_out <- glm(CLM_AMT ~ BLUEBOOK*MSTATUS + CAR_USE*TIF, data=c(Y,X), family=inverse.gaussian(link="log"), subset=-c(1218, 805))
+summary(model_4_out)
+```
+
+Poniżej porównano 4 najlepsze modele wykorzystując w tym celu odchylenie standardowe reszt, kryterium AIC oraz miary pseudo-R^2.
+
+```{r}
+ocena_modelu_GLM <- function(model) {
+  odch_std_reszt <- (model$deviance/model$df.residual)^0.5
+  kryterium_AIC <- c(model$aic)
+  McFadden<-pR2(model)[4]
+  Cragg_Uhler<-pR2(model)[6]
+  ocena <- data.frame(odch_std_reszt, kryterium_AIC, McFadden, Cragg_Uhler)
+  return(ocena)
+}
+
+ocena_modeli <- rbind(model_1=ocena_modelu_GLM(model_1_out), 
+                      model_2=ocena_modelu_GLM(model_2_out), 
+                      model_3=ocena_modelu_GLM(model_3_out),
+                      model_4=ocena_modelu_GLM(model_4_out))
+
+ocena_modeli
+```
+Na podstawie powyższych wyników za najlepszy model można uznać model nr 4 charakteryzujący się najniższym odchyleniem standardowym reszt i wartością kryterium AIC oraz najwyższymi ratościami miar pseudo-R^2.
+
+Jakość modeli zweryfikowano wykorzystując w tym celu zbiór testowy i porównując średnią wartość prognozowanych wartości ze średnią wartością rzeczywistych wartości. W celu dodatkowej weryfikacji do poniższych wynikóW dołączono również model 1 przed wykluczeniem wartości odstających.
+
+```{r}
+X_test <- subset(data_test[data_test$CLAIM_FLAG == TRUE,], select=-c(ID, CLM_AMT, CLAIM_FLAG))
+Y_test <- data_test[data_test$CLAIM_FLAG == TRUE,]['CLM_AMT']
+X_Y_test <- c(X_test, Y_test)
+
+prediction_test <- data.frame(cbind(
+  real=X_Y_test$CLM_AMT,
+  model_1_with_out=exp(predict(model_1, X_Y_test)),
+  model_1=exp(predict(model_1_out, X_Y_test)),
+  model_2=exp(predict(model_2_out, X_Y_test)),
+  model_3=exp(predict(model_3_out, X_Y_test)),
+  model_4=exp(predict(model_4_out, X_Y_test))
+))
+
+rbind(
+  real=mean(prediction_test$real),
+  model_1_with_out=mean(prediction_test$model_1_with_out),
+  model_1=mean(prediction_test$model_1),
+  model_2=mean(prediction_test$model_2),
+  model_3=mean(prediction_test$model_3),
+  model_4=mean(prediction_test$model_4)
+)
+```
+Dla danych ze zbioru testowego średnia wartość szkody wyniosła $5716. Średnia prognoza każdego z modeli z wykluczonymi wartościami odstającymi była niższa od rzeczywistej wartości. Prognozy najbliżej rzeczywistej średniej wartości uzyskano z modelu 1 przed wykluczeniem wartości odstających oraz modelu 2. 
+
+### Podsumowanie
+
+Za najlepszy model uznano model nr 2, który w warunkach testowych pozwolił na uzyskanie średniej wartości najbliższej średniej rzeczywistej. Dodatkowe skomplikowanie modeli nr 3 i 4 wydaje się być nieuzasadnione merytorycznie. Wybrano zatem model prostszy, zawierający zmienne opisujące wartość pojazdu i stan cywilny ubezpieczonego w interakcji. Ze względu na wykluczenie wartości odstających podczas modelowania suma prognozowanych odszkodowań może być zaniżona, dlatego należałoby rozważyć wprowadzenie dodatkowego narzutu na poczet dużych szkód. 
+

@@ -1,0 +1,186 @@
+---
+title: "GLM_modeling"
+author: "PS"
+date: "14 06 2022"
+output: html_document
+---
+
+```{r}
+library("car") # funkcja vif()
+library("ggplot2") # wykresy - funkcja ggplot()
+library("pscl") #pseudo-R2 funkcja pR2()
+library("lmtest") #testy LR i Walda globalne
+```
+
+
+```{r}
+data <- data.frame(read.csv('car_insurance_ready.csv'))
+```
+
+
+```{r}
+data$PARENT1 <- as.logical(data$PARENT1)
+data$MSTATUS <- as.logical(data$MSTATUS)
+data$GENDER <- as.factor(data$GENDER)
+data$EDUCATION <- as.factor(data$EDUCATION)
+data$OCCUPATION <- as.factor(data$OCCUPATION)
+data$CAR_USE <- as.factor(data$CAR_USE)
+data$CAR_TYPE <- as.factor(data$CAR_TYPE)
+data$RED_CAR <- as.logical(data$RED_CAR)
+data$REVOKED <- as.logical(data$REVOKED)
+data$CLAIM_FLAG <- as.logical(data$CLAIM_FLAG)
+data$URBANICITY <- as.factor(data$URBANICITY)
+```
+
+```{r}
+set.seed(1257)
+liczby_losowe <- sample(c(1:n), round(0.7*n), replace = FALSE)
+data <- data[liczby_losowe,]
+```
+
+
+
+```{r}
+X <- subset(data, select=-c(ID, CLM_AMT, CLAIM_FLAG))
+Y <- data['CLAIM_FLAG']
+```
+
+```{r}
+model_x <- glm(CLAIM_FLAG ~ HOME_VAL*YOJ + INCOME + BLUEBOOK, data=c(Y, X), family=binomial)
+  print(summary(model_x))
+```
+
+
+```{r}
+  #model_x <- glm(CLAIM_FLAG ~ HOME_VAL*YOJ + TIF + CLM_FREQ + CAR_USE + KIDSDRIV*HOMEKIDS + MSTATUS + PARENT1 + CAR_AGE + URBANICITY + MVR_PTS + OLDCLAIM + INCOME, data=c(Y, X), family=binomial)
+model_x <- glm(CLAIM_FLAG ~ TRAVTIME + TIF + CLM_FREQ + CAR_USE + KIDSDRIV*HOMEKIDS + MSTATUS + PARENT1 + CAR_AGE + URBANICITY + MVR_PTS + OLDCLAIM + INCOME + REVOKED + CAR_TYPE + BLUEBOOK, data=c(Y, X), family=binomial)
+  print(summary(model_x))
+```
+
+
+```{r}
+rocobj1 <- roc(m$y, m$fitted.values)
+rocobj1_t <- roc(dane_testowy$CLAIM_FLAG, predict(m, dane_testowy, type = "response"))
+plot(rocobj1, main = "krzywe ROC dla modelu logitowego", col="red")
+lines(rocobj1_t, col="blue")
+```
+
+
+
+
+```{r}
+for (n in names(X)) {
+  print(n)
+  model_x <- glm(CLAIM_FLAG ~ get(n), data=c(Y, X), family=binomial)
+  print(summary(model_x))
+}
+```
+
+
+
+
+
+
+
+
+
+```{r}
+model1 <- glm(CLM_AMT ~ BLUEBOOK + INCOME, data=c(Y,X), family=gaussian(link=log))
+```
+
+```{r}
+summary(model1)
+```
+
+```{r}
+model_measures <- function(model) {
+  res_std_dev <- (model$deviance/model$df.residual)^0.5
+  AIC_crit <- c(model$aic)
+  McFadden<-pR2(model)[4]
+  Cragg_Uhler<-pR2(model)[6]
+  measure_summary <- data.frame(res_std_dev, AIC_crit, McFadden, Cragg_Uhler)
+  return(measure_summary)
+}
+```
+
+```{r}
+model_measures(model1)
+```
+
+
+```{r}
+lrtest(model1)
+```
+```{r}
+waldtest(model1)
+```
+
+```{r}
+plot(model1, which=1:6)
+```
+
+```{r}
+outlierTest(model1, n.max=Inf)
+```
+
+```{r}
+vif(model1)
+```
+
+```{r}
+model2 <- glm(CLM_AMT ~ INCOME, data=c(Y, X), family=Gamma(link="log"))
+summary(model2)
+
+```
+
+```{r}
+model_y <- glm(CLM_AMT ~ KIDSDRIV, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_y))
+```
+```{r}
+X <- subset(data, select=-c(ID, CLM_AMT, CLAIM_FLAG))
+Y <- data['CLM_AMT']
+```
+
+
+```{r}
+  model_y <- glm(CLM_AMT ~ BLUEBOOK, data=c(Y, X), family=tweedie)
+  print(summary(model_y))
+```
+
+
+```{r}
+for (n in names(X)) {
+  print(n)
+  #model_x <- glm(CLM_AMT ~ get(n), data=c(Y, X), family=Gamma(link="log"))
+  #print(summary(model_x))
+  model_y <- glm(CLM_AMT ~ get(n), data=c(Y, X), family=tweedie(link="log"))
+  print(summary(model_y))
+}
+```
+
+```{r}
+X <- subset(data, select=-c(ID, CLM_AMT, CLAIM_FLAG))
+Y <- data['CLAIM_FLAG']
+```
+
+
+```{r}
+for (n in names(X)) {
+  print(n)
+  #model_x <- glm(CLM_AMT ~ get(n), data=c(Y, X), family=Gamma(link="log"))
+  #print(summary(model_x))
+  model_y <- glm(CLAIM_FLAG ~ get(n), data=c(Y, X), family=quasipoisson(link="log"))
+  print(summary(model_y))
+}
+```
+```{r}
+library("MASS")
+```
+
+
+```{r}
+model_3 <- glm(CLAIM_FLAG ~ MSTATUS, data = c(Y,X), family=quasipoisson)
+summary(model_3)
+```
+

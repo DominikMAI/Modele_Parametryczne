@@ -1,0 +1,289 @@
+---
+title: "GLM_modeling"
+author: "PS"
+date: "14 06 2022"
+output: html_document
+---
+
+```{r}
+library("car") # funkcja vif()
+library("ggplot2") # wykresy - funkcja ggplot()
+library("pscl") #pseudo-R2 funkcja pR2()
+library("lmtest") #testy LR i Walda globalne
+```
+
+
+```{r}
+data <- data.frame(read.csv('car_insurance_ready.csv'))
+```
+
+
+```{r}
+data$PARENT1 <- as.logical(data$PARENT1)
+data$MSTATUS <- as.logical(data$MSTATUS)
+data$GENDER <- as.factor(data$GENDER)
+data$EDUCATION <- as.factor(data$EDUCATION)
+data$OCCUPATION <- as.factor(data$OCCUPATION)
+data$CAR_USE <- as.factor(data$CAR_USE)
+data$CAR_TYPE <- as.factor(data$CAR_TYPE)
+data$RED_CAR <- as.logical(data$RED_CAR)
+data$REVOKED <- as.logical(data$REVOKED)
+data$CLAIM_FLAG <- as.logical(data$CLAIM_FLAG)
+data$URBANICITY <- as.factor(data$URBANICITY)
+```
+
+```{r}
+data$OCCUPATION <- relevel(data$OCCUPATION, ref='Blue Collar')
+data$CAR_USE <- relevel(data$CAR_USE, ref='Private')
+data$EDUCATION <- relevel(data$EDUCATION, ref='<High School')
+data$GENDER <- relevel(data$GENDER, ref='F')
+data$CAR_TYPE <- relevel(data$CAR_TYPE, ref='SUV')
+data$URBANICITY <- relevel(data$URBANICITY, ref='Highly Urban/ Urban')
+```
+
+
+
+```{r}
+set.seed(1257)
+n <- nrow(data)
+random_nums <- sample(c(1:n), round(0.7*n), replace = FALSE)
+data_train <- data[random_nums,]
+dane_test <- data[-random_nums,]
+```
+
+
+
+
+```{r}
+X <- subset(data_train[data_train$CLAIM_FLAG == TRUE,], select=-c(ID, CLM_AMT, CLAIM_FLAG))
+Y <- data_train[data_train$CLAIM_FLAG == TRUE,]['CLM_AMT']
+```
+
+
+Do modelowania średniej szkody najczęściej wykorzystuje się rozkład Gamma lub odwrotny gaussowski.
+
+
+```{r}
+for (n in names(X)) {
+  model_x <- glm(CLM_AMT ~ get(n), data=c(Y, X), family=Gamma(link="log"))
+  cat(n, '\n')
+  print(summary(model_x)$coefficients)
+  cat('AIC: ', model_x$aic)
+  cat('\n\n')
+}
+```
+
+```{r}
+boxplot(Y$CLM_AMT)
+```
+
+
+```{r}
+plot(ecdf(Y$CLM_AMT))
+#sort(Y$CLM_AMT, decreasing = T)
+```
+
+```{r}
+for (n in names(X)) {
+  model_x <- glm(CLM_AMT ~ get(n), data=c(Y, X), family=inverse.gaussian(link="log"))
+  cat(n, '\n')
+  print(summary(model_x)$coefficients)
+  cat('AIC: ', model_x$aic)
+  cat('\n\n')
+}
+```
+
+```{r}
+X$EDUCATION_2 <- relevel(as.factor(sapply(as.character(X$EDUCATION), function(x) ifelse(x %in% c('Bachelors', 'Masters', 'PhD'), 'Higher', x))), ref='High School')
+```
+
+```{r}
+model_edu <- glm(CLM_AMT ~ EDUCATION, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_edu)$coefficients)
+cat('AIC: ', model_edu$aic)
+cat('\n\n')
+
+model_edu_2 <- glm(CLM_AMT ~ EDUCATION_2, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_edu_2)$coefficients)
+cat('AIC: ', model_edu_2$aic)
+cat('\n\n')
+```
+
+```{r}
+X$YOJ_2 <- relevel(as.factor(sapply(X$YOJ, function(x) ifelse(x > 5, '6 or more', '0'))), ref='0')
+```
+
+```{r}
+model_yoj <- glm(CLM_AMT ~ YOJ, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_yoj)$coefficients)
+cat('AIC: ', model_yoj$aic)
+cat('\n\n')
+
+model_yoj_2 <- glm(CLM_AMT ~ YOJ_2, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_yoj_2)$coefficients)
+cat('AIC: ', model_yoj_2$aic)
+cat('\n\n')
+```
+
+```{r}
+X$CAR_TYPE_2 <- relevel(as.factor(sapply(as.character(X$CAR_TYPE), function(x) ifelse(x %in% c('Panel Truck', 'Van'), 'Truck/Van', x))), ref='SUV')
+```
+
+```{r}
+model_car_type <- glm(CLM_AMT ~ CAR_TYPE, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_car_type)$coefficients)
+cat('AIC: ', model_car_type$aic)
+cat('\n\n')
+
+model_car_type_2 <- glm(CLM_AMT ~ CAR_TYPE_2, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_car_type_2)$coefficients)
+cat('AIC: ', model_car_type_2$aic)
+cat('\n\n')
+```
+
+```{r}
+X$CAR_TYPE_3 <- relevel(as.factor(sapply(as.character(X$CAR_TYPE), function(x) ifelse(x == 'Panel Truck', 'Panel Truck', 'Other'))), ref='Other')
+```
+
+```{r}
+model_car_type <- glm(CLM_AMT ~ CAR_TYPE, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_car_type)$coefficients)
+cat('AIC: ', model_car_type$aic)
+cat('\n\n')
+
+model_car_type_3 <- glm(CLM_AMT ~ CAR_TYPE_3, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_car_type_3)$coefficients)
+cat('AIC: ', model_car_type_3$aic)
+cat('\n\n')
+```
+
+
+
+
+```{r}
+X$OCCUPATION_2 <- relevel(as.factor(sapply(as.character(X$OCCUPATION), function(x) ifelse(x == 'Student', 'Student', 'Other'))), ref='Other')
+```
+
+```{r}
+model_occ <- glm(CLM_AMT ~ OCCUPATION, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_occ)$coefficients)
+cat('AIC: ', model_occ$aic)
+cat('\n\n')
+
+model_occ_2 <- glm(CLM_AMT ~ OCCUPATION_2, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_occ_2)$coefficients)
+cat('AIC: ', model_occ_2$aic)
+cat('\n\n')
+```
+
+
+
+
+```{r}
+# zaczynam od YOJ + INCOME + PARENT1 + MSTATUS + OCCUPATION_2 + BLUEBOOK + TIF + CAR_TYPE_3 i usuwam po kolei nieistotne
+model1 <- glm(CLM_AMT ~ BLUEBOOK + TIF, data=c(Y,X), family=inverse.gaussian(link="log"))
+summary(model1)
+```
+
+```{r}
+model1 <- glm(CLM_AMT ~ INCOME, data=c(Y,X), family=inverse.gaussian(link="log"))
+summary(model1)
+```
+
+
+```{r}
+summary(model1)
+```
+
+```{r}
+model_measures <- function(model) {
+  res_std_dev <- (model$deviance/model$df.residual)^0.5
+  AIC_crit <- c(model$aic)
+  McFadden<-pR2(model)[4]
+  Cragg_Uhler<-pR2(model)[6]
+  measure_summary <- data.frame(res_std_dev, AIC_crit, McFadden, Cragg_Uhler)
+  return(measure_summary)
+}
+```
+
+```{r}
+model_measures(model1)
+```
+
+
+```{r}
+lrtest(model1)
+```
+```{r}
+waldtest(model1)
+```
+
+```{r}
+plot(model1, which=1:6)
+```
+
+```{r}
+outlierTest(model1, n.max=Inf)
+```
+
+```{r}
+vif(model1)
+```
+
+```{r}
+model2 <- glm(CLM_AMT ~ INCOME, data=c(Y, X), family=Gamma(link="log"))
+summary(model2)
+
+```
+
+```{r}
+model_y <- glm(CLM_AMT ~ KIDSDRIV, data=c(Y, X), family=inverse.gaussian(link="log"))
+print(summary(model_y))
+```
+```{r}
+X <- subset(data, select=-c(ID, CLM_AMT, CLAIM_FLAG))
+Y <- data['CLM_AMT']
+```
+
+
+```{r}
+  model_y <- glm(CLM_AMT ~ BLUEBOOK, data=c(Y, X), family=tweedie)
+  print(summary(model_y))
+```
+
+
+```{r}
+for (n in names(X)) {
+  print(n)
+  #model_x <- glm(CLM_AMT ~ get(n), data=c(Y, X), family=Gamma(link="log"))
+  #print(summary(model_x))
+  model_y <- glm(CLM_AMT ~ get(n), data=c(Y, X), family=tweedie(link="log"))
+  print(summary(model_y))
+}
+```
+
+```{r}
+X <- subset(data, select=-c(ID, CLM_AMT, CLAIM_FLAG))
+Y <- data['CLAIM_FLAG']
+```
+
+
+```{r}
+for (n in names(X)) {
+  print(n)
+  #model_x <- glm(CLM_AMT ~ get(n), data=c(Y, X), family=Gamma(link="log"))
+  #print(summary(model_x))
+  model_y <- glm(CLAIM_FLAG ~ get(n), data=c(Y, X), family=quasipoisson(link="log"))
+  print(summary(model_y))
+}
+```
+```{r}
+library("MASS")
+```
+
+
+```{r}
+model_3 <- glm(CLAIM_FLAG ~ MSTATUS, data = c(Y,X), family=quasipoisson)
+summary(model_3)
+```
+
