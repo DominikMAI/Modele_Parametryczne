@@ -1,39 +1,51 @@
 ---
-title: "Regresja_Logistyczna"
+title: "Wyznaczanie wielkości składki ubezbieczenia z wykorzystaniem uogólnionych modeli liniowych"
+subtitle: "Rozdział 2 pracy 'Modelowanie ryzyka ubezpieczeń ja nie wiem, Piotrek'"
+description: | 
+  Szacowanie ryzyka roszczeń z tytułu udziału z wykorzystaniem modelu logitowego
+author:
+name: Dominik Mielczarek
+affiliation: N42-12
+
+date: "`r format(Sys.time(), '%d %B %Y')`"
+
+abstract: |
+  Model regresji logistycznej do oszacowania ryzyka udziału w kolizji drogowej w oparciu o cechy klienta.
+  Opisany został stopniowy proces budowania modelu łącząc metody automatyczne z dotychczasową wiedzą i doświadczeniem.
+  Oceniono wpływ cech na zmienną objaśnianą i ich interakcji. 
+  W ostatnim kroku decyzyjność modelu poddano ewaluacji pod kątem skuteczności w klasyfikacji.
+  Porównano dodatnią i ujemną zdolność predykcyjną. 
 output:
   html_document: default
   pdf_document: default
+  
 ---
 ```{r setup, include=FALSE}
-
 library("readxl")
 library("car") # funkcja vif()
 library("ggplot2") # wykresy - funkcja ggplot()
 library("lmtest") # testy diagnostyczne modeli lm
-
-#library("PerformanceAnalytics")
-library("ggplot2") # wykresy - funkcja ggplot()
 library("pscl") #pseudo-R2 funkcja pR2()
 library("pROC") #funkcje roc, auc
 set.seed(1257) #set.seed(NULL) --> usunięcie "ziarna"
 
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-## Wstep
-to do list: \ 
- - interakcje -
- - część samochodow moze byc w rzeczywistosci zarejestrowana na osoby starsze ale uzytkowana przez młodych - którzy powodują kolizje
- -Jeszcze analizuje ale mysle, ze takie zalozenie ma sens, opieramy model na: dochodzie, fakcie bycia rodzicem, wieku i uprzednio otrzymanych punktach karnych. Pozostałe zmienne są pochodnymi tych cech.
+Proces modelowania rozpoczyna przyjrzenie się danym przygotowanym w etapie projektu "Przygotowanie danych". W tej części cechy zostają poddane przekształceniu w oparciu o wnioski wyciągnięte w późniejszych etapach. Dla zachowania porządku myślowego przekształcenia, modyfikacje grup referencyjncyh zostają zawarte w tym akapicie. Etap modelowania oszacowania szansy wystąpienia kolizji drogowej i wystąpienia o odszkodowanie przez klienta w oparciu o dane dotyczące: <br/>
+- podstawowej metryki klienta<br/>
+- sytuacja w rodzinnaprywatnym,<br/>
+- statusu materialnego oraz pozycji społecznej klienta <br/>
+- historię ubezbieczenie samochodu klienta, <br/>
+Dostępne dane zostają ocenione w kontekście wpływu na ryzyko wystąpienia kolizji drogowej.
+Kolejne cechy zostały dobierane w oparciu o automatyczną selekcję w oparciu o wartości kryterium informacyjnego.
 
 ### Wczytanie danych
 ```{r}
-dane <- read.csv("./dane/LR_dane_treningowe_testowe.csv")
+dane <- read.csv("./dane/po_imputacji.csv", sep=';', encoding = "UTF-8", dec = ',')
 dane <- dane[, -c(24)]
-summary(dane)
 ```
 
-### Wstępne przetworzenie 
+### Wstępne przetworzenie zmiennych
 ```{r pressure, echo=FALSE}
 dane$CLAIM_FLAG <- as.factor(dane$CLAIM_FLAG)
 dane$HOMEKIDS <- as.factor(dane$HOMEKIDS)
@@ -48,14 +60,14 @@ dane$REVOKED <- as.factor(dane$REVOKED)
 dane$URBANICITY <- as.factor(dane$URBANICITY)
 dane$RED_CAR <- as.factor(dane$RED_CAR)
 
+# Liczbę punktów zamieniamy na grupy punktowe liczby punktów.
 dane$MVR_PTS_GRP <- 0
 dane$MVR_PTS_GRP[dane$MVR_PTS < 6] <- 1
 dane$MVR_PTS_GRP[(dane$MVR_PTS > 5) & (dane$MVR_PTS < 11)] <- 2
 dane$MVR_PTS_GRP[dane$MVR_PTS > 10] <- 3
 dane$MVR_PTS_GRP <- as.factor(dane$MVR_PTS_GRP)
 
-
-##Ad. model 4 - Nisko-wykwalifikowani vs wysoko wykfalifikowani
+##Ad. model 4 - Nisko-wykwalifikowani vs wysoko wykwalifikowani.
 dane$OCCUPATION_GRP <- 0
 
 dane$OCCUPATION_GRP[(dane$OCCUPATION=="Blue Collar") | 
@@ -71,46 +83,25 @@ dane$OCCUPATION_GRP[(dane$OCCUPATION=="Clerical") |
 
 dane$OCCUPATION_GRP <- as.factor(dane$OCCUPATION_GRP)
 
-dane <- na.omit(dane)
+## syntentyczna zmienna odległości od wartościo środkowej
 dane$AGE_tr <-(dane$AGE - median(dane$AGE))**2
 
-
-## hOME VAL
+## Wartość domu zamieniamy na zmienną dychotomiczną odnotowującą fakt posiadania domu.
 dane$HOME_VAL_D <- 0
 dane$HOME_VAL_D[dane$HOME_VAL  == 0] <-0
 dane$HOME_VAL_D[dane$HOME_VAL != 0] <- 1
 dane$HOME_VAL_D <- as.factor(dane$HOME_VAL_D)
 
-
-
+dane <- na.omit(dane)
 summary(dane)
-#
-#cdplot(dane$INCOME, dane$CLAIM_FLAG, xlab = "dochód", ylab = "zadowolenie")
 sapply(dane, typeof)
 ```
-
-
-### Weryfikacja współlniowości
-Weryfikacja współlino
-Zmienne porządkowe - Spearman rank correlation coefficient (ordinal variables)
-Nominalne - chi-square test (nominal variables)
-#WSPÓŁINIOWOŚĆ - OCCUPATION_GRP - INCOME ?
-
-```{r}
-# Zmienne ciągłe
-
-#chart.Correlation(dane[,c('INCOME', 'HOME_VAL', 'CLM_AMT','OLDCLAIM', 'BLUEBOOK','CAR_AGE')], histogram=TRUE, pch=9)
-
-## Wspołliniowość zmiennych porzadkowych - rank spearman correlation
-#cor.test(dane$INCOME, dane$MVR_PTS_GRP, method = 'spearman')
-```
-
 ### Podział na dwa zbiory - treningowy i uczący.
 Za pomocą generatora liczb w rozkładzie jednorodnym, losujemy 70% wszystkich rekordów tabeli i przypisujemy je do zestawu treningowe.
 Pozostałe 30% zostaje przypisanych do zestawu testowego, który posłuży do ewaluacji skuteczności naszego modelu.
 Po przeprowadzeniu podziału, weryfikujemy czy balans klas został zachowany w odniesieniu do oryginalnego zestawu danych.
 ```{r}
-# Losowanie na wczesnym etapie, Podział na 
+# Losowanie na wczesnym etapie, Podział na dane treningowe i testowe
 n <- nrow(dane)
 liczby_losowe <- sample(c(1:n), round(0.7*n), replace = FALSE)
 dane_uczacy <- dane[liczby_losowe,]
@@ -123,28 +114,35 @@ table(dane_uczacy$CLAIM_FLAG) / nrow(dane_uczacy)
 ### Analiza danych pod kątem wystąpienia szkody / kolizji drogowej
 
 **Pierwsze wnioski i hipotezy:**
-- Zamożni rzadziej powodują wypadki, ale tylko do przedziału 22 018USD, dla kolejnych grup dochodowych liczba wypadkóW wzrasta \
-- Mężczyzni częściej powodują wypadki (pytanie czy to istotna różnica) \
-- Zdecydowanie więcej wypadków powodują osoby niebędące rodzicami \
+- Zamożni rzadziej powodują wypadki, ale tylko do przedziału 22 018USD, dla kolejnych grup dochodowych liczba wypadkóW wzrasta. <br/>
 
-- Osoby będące w dolnych grupach wiekowych powodują więcej kolizji, ta tendencja spada wraz z wiekiem aż do grupy 48-55lat i następnie wzrasta w grupach \
+- Mężczyzni częściej powodują wypadki (pytanie czy to istotna różnica). <br/>
 
-- Czy możemy sprawdzic czy największe prawdopodobieństwo wystąpeinia szkody zachodzi w przypadku podróży średnio-długich (45-60min) \
+- Zdecydowanie więcej wypadków powodują osoby niebędące rodzicami. <br/>
 
-- Osoby, które otrzymały w przeszłości punkty karne, zdecydowanie częściej są uczestnikami kolizji drogowych. \ 
+- Osoby będące w dolnych grupach wiekowych powodują więcej kolizji, ta tendencja spada wraz z wiekiem aż do grupy 48-55lat i następnie wzrasta w grupach. <br/>
 
-- Widoczna jest również zależność pomiędzy wiekiem samochodu a częstościa występowania zdarzenia,wraz z wiekiem samochodu, maleje szansa na udział kolizji drogowej. \ 
+- Czy możemy sprawdzic czy największe prawdopodobieństwo wystąpeinia szkody zachodzi w przypadku podróży średnio-długich (45-60min). <br/>
 
-- Studenci i osoby nisko wykwalifikowane rzadziej biorą udział w kolizjach drogowych, może podział na dwie grupy ?
+- Osoby, które otrzymały w przeszłości punkty karne, zdecydowanie częściej są uczestnikami kolizji drogowych. <br/>
 
-Zatem w procesie
+- Widoczna jest również zależność pomiędzy wiekiem samochodu a częstościa występowania zdarzenia, wraz z wiekiem samochodu, maleje szansa na udział kolizji drogowej. <br/>
+
+- Studenci i osoby nisko wykwalifikowane rzadziej biorą udział w kolizjach drogowych. <br/>
+
+- Liczba dzieci wpływa na ryzyko udziału w kolizji drogowej przez rodziców. <br/>
+
+- Liczba lat bycia ubezpieczonym w firmie może wpływać na nizsze ryzyko. <br/>
+
+- Jednostka osadnicza - zagęszczenie ruchu drogowego może zwiększać ryzyko udziału w kolizji drogowej. <br/>
+
+- Charakter wykorzystywania samochodu - prywatny czy też w celach komercyjnych.
 
 #### Iteracyjne budowanie
+Weryfikacja wpływu poszczególnych zmiennych na objaśnianą.
 ```{r}
-#select_if(dane, is.numeric)
 cols <- as.vector(colnames(dane[,-c(26,23)]))
 
-istotne = list()
 for (c in cols[3:length(cols)]){
   
   if (c != 'CLAIM_FLAG'){
@@ -154,19 +152,18 @@ for (c in cols[3:length(cols)]){
   
   if (w_test$`Pr(>F)`[2] < 0.05){
       print(paste('istotna',c ,'pvalue:', format(w_test$`Pr(>F)`[2],  scientific = TRUE))[1])  
-      #istotne <- append(istotne, c)
+      
   } else{
       print(paste('nieistotna',c,'pvalue:', round(w_test$`Pr(>F)`[2], 2) ))
-      #print(summary(m)$coefficients)
   }
   }
+  gc() #garbage cleaner
 }
 
 ```
 W iteracyjnej weryfikacji istotności zmiennych, większość zmiennych okazała się istotna.
 Wśród cech nie mających wpływu na wystąpienie kolizji wyróżniamy płeć, kolor czerwony samochodu, wartość szkody.
 Pozostałe (istotne) zmienne posłużą w budowaniu modelu. Oprócz kryterióW jakości modelu, cechy dobierane są w oparciu o dostępną wiedzę i doświadczenie. <br />
-
 
 #### Proces budowania kolejnych zmiennych
 ### Model 1 - dochód
@@ -200,7 +197,7 @@ m3 <- glm(CLAIM_FLAG~INCOME+PARENT1, data = dane_uczacy, family = binomial)
 summary(m3)
 ```
 **Wniosek** <br/>
-Analizując parametr strukturalny $\beta_3$, wnioskujemy, że zachodzi odwrotna zależność pomiędzy faktem bycia samotnym rodzicem a szansą wystąpienia kolizji. Jeżli ktoś jest rodzicem, to zachodzi mniejsza szansa, że kierowca spowoduje kolizję <br/>.
+Analizując parametr strukturalny $\beta_3$, wnioskujemy, że zachodzi odwrotna zależność pomiędzy faktem bycia samotnym rodzicem a szansą wystąpienia kolizji. Jeżeli ktoś jest rodzicem, to zachodzi mniejsza szansa, że kierowca spowoduje kolizję <br/>.
 
 
 ### Model 4 - wiek
@@ -219,7 +216,6 @@ Analizując parametr strukturalny $\beta_2$, wnioskujemy, że zachodzi zależno�
 ### Model 5 - wartość domu -> fakt posiadania domu
 W piątym modelu stawiamy hipotezę, że istnieje zależność pomiędzy wartością domu a liczba kolizji.
 Ponieważ w 30% wszystkich rekordów wartość ta wynosi 0, zmienną ilościową zamieniliśmy na nominalną dychotomiczną (*HOME_VAL_D*) mówiącą o fakcie posiadania domu.
-
 ```{r}
 m5 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D, data = dane_uczacy, family = binomial)
 summary(m5)
@@ -228,7 +224,7 @@ summary(m5)
 summary(m4)$aic - summary(m5)$aic
 ```
 **Wniosek** <br/>
-Analizując parametr strukturalny $\beta_5$, wnioskujemy, że zachodzi  odwrotna zależność pomiędzy faktem posiadania domu a szansą wystąpienia kolizji. Zmienna **HOME_VAL_D** obniża wartość kryterium informacyjnego Akaike od 48.45. <br/>
+Analizując parametr strukturalny $\beta_5$, wnioskujemy, że zachodzi  odwrotna zależność pomiędzy faktem posiadania domu a szansą wystąpienia kolizji. Zmienna **HOME_VAL_D** obniża wartość kryterium informacyjnego Akaike od 50,57. <br/>
 
 
 ### Model 6 - stan cywilny
@@ -242,15 +238,12 @@ summary(m6)
 ```{r}
 summary(m5)$aic - summary(m6)$aic
 ```
-
 **Wniosek** <br/>
-Analizując parametr strukturalny $\beta_6$, wnioskujemy, że nie zachodzi istotna zależność pomiędzy faktem bycią małżonkiem a szansą wystąpienia kolizji.<br/>
-
+Analizując parametr strukturalny $\beta_6$, wnioskujemy, że nie zachodzi znacząca zależność pomiędzy faktem bycią małżonkiem a szansą wystąpienia kolizji. Parametr struktralny jest istotny na poziommie $\alpha=0.05$, jednak według kryterium informacyjnego AIC, ta zmiana nie jest znacząca. Zmienna nie zostaje włączona do modelu <br/>
 
 ### Model 7 - użytkowanie prywatne/komercyjne samochodu
 W piątym modelu stawiamy hipotezę, że istnieje zależność pomiędzy faktem bycia małżenstwie a szansą zaistnienia kolizji.
 Zmienna **CAR_USE** jest zmienną dychotomiczną.
-
 ```{r}
 m7 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE, data = dane_uczacy, family = binomial)
 summary(m7)
@@ -260,9 +253,10 @@ summary(m5)$aic - summary(m7)$aic
 ```
 **Wniosek**
 Zmienna MSTATUS powoduje utrate istotnosci wyrazu wolnego.
-Zmienna **CAR_USE** nie zostaje włączona do modelu, jej właczenie pozwala na obniżenie kryterium informacyjnego o 152.62 jednostek.
+Zmienna **CAR_USE** nie zostaje włączona do modelu, mimo, że jej właczenie pozwala na obniżenie kryterium informacyjnego o 170.42 jednostek.
 
 ### Model 8 - Cena samochodu
+W modelu 8 stawiamy hipotezę, że istnieje zależność pomiędzy ceną samochodu a szansą udziału w kolizji drogowej.
 ```{r}
 m8 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+BLUEBOOK, data = dane_uczacy, family = binomial)
 summary(m8)
@@ -277,6 +271,7 @@ Zmienna bluebook nie zostaje włączona do modelu.
 
 
 ### Model 9 - liczba lat jako klient
+W wykorzystaniu kolejnej zmiennej zakładamy, że liczba lat bycia ubezpieczonym w danej firmie determinuje ryzyko wystąpienia udziału w kolizji drogowej.
 ```{r}
 m9 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+TIF, data = dane_uczacy, family = binomial)
 summary(m9)
@@ -286,13 +281,12 @@ summary(m9)
 summary(m8)$aic - summary(m9)$aic
 ```
 **Wniosek**
-Zmienna TIF poprawia nasz model zmniejszając wartość kryterium informacyjnego Akaike o 38.47.
+Zmienna TIF poprawia nasz model zmniejszając wartość kryterium informacyjnego Akaike o 15.053.
 Parametr strukturalny $\beta_9$zachowuje wysoki poziom istotności.
 Zmienna TIF zostaje włączona do modelu.
 
-
 ### Model 10 - typ samochodu
-Typ samochodu wiąże się z jego gabarytami, widocznością ciemnych pól widzenia i zakładamy, że może wypływać na zwiększoną szansę udziału w kolizji.
+Weryfikujemy założenie, że typ samochodu wiąże się z jego gabarytami, widocznością ciemnych pól widzenia i zakładamy, i te cechy mogą wypływać na zwiększoną szansę udziału w kolizji.
 ```{r}
 m10 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+CAR_TYPE, data = dane_uczacy, family = binomial)
 summary(m10)
@@ -301,66 +295,62 @@ summary(m10)
 summary(m9)$aic - summary(m10)$aic
 ```
 **Wniosek**
-Ze względu na to, że zmienna CAR_TYPE znacznie obniża wartość kryterium informacyjnego, decydujemy o włączaniu jej do modelu.
-Zmienna obniża wartość kryterium informacyjnego Akaike o 233.37.
+Ze względu na to, że zmienna CAR_TYPE znacznie obniża wartość kryterium informacyjnego Akaikeo 288, decydujemy o włączeniu jej do modelu.
+
 
 ### Model 11 - odebranie prawa jazdy w ciagu ostatnich 7 lat.
-Weryfikacja czy fakt odebrania prawa jazdy zwiększa szanse na spowodowanie / udział w kolizji
-
+Weryfikacja czy fakt odebrania prawa jazdy w przeszłości zwiększa szanse na spowodowanie / udziału w kolizji drogowej.
+Cecha REVOKED jest zmienną dychotomiczną.
 ```{r}
-m11 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+CAR_TYPE+REVOKED, data = dane_uczacy, family = binomial)
+m11 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+REVOKED, data = dane_uczacy, family = binomial)
 summary(m11)
 ```
 ```{r}
 summary(m10)$aic - summary(m11)$aic
 ```
-
 **Wniosek**
-Ze względu na to, że zmienna REVOKED znacznie podwyższa wartość kryterium informacyjnego, decydujemy o nie włączaniu jej do modelu.
+Ze względu na to, że zmienna REVOKED obniża wartość kryterium informacyjnego, decydujemy o włączaniu jej do modelu. Fakt utraty prawa jazdy zwiększa szanse na udział w kolizji w pszyszłości.
 
 ### Model 12 - wiek samochodu
+W modelu 12 weryfikujemy założenie, że zmienna wiek samochodu ma silny wpływ na ryzyko udziału w kolizji i poprawi nasz model.
 ```{r}
-m12 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+CAR_TYPE+REVOKED+CAR_AGE, data = dane_uczacy, family = binomial)
+m12 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+REVOKED+CAR_AGE, data = dane_uczacy, family = binomial)
 summary(m12)
 ```
 ```{r}
 summary(m11)$aic - summary(m12)$aic
-
 ```
 **Wnioski**
-Parametr wieku samochodu jest istotny statystycznie jednak wprowadzenie go do modelu tylko nieznacznie obniża wartość kryterium informacyjnego Akaike o 132.45 jednostek. W rezultacie nie zostaje włączony do modelu.
+Parametr wieku samochodu jest istotny statystycznie jednak wprowadzenie go do modelu tylko nieznacznie obniża wartość kryterium informacyjnego Akaike. W rezultacie nie zostaje włączony do modelu.
 
 ### Model 13 -jednostka osadnicza
 Zagęszczenie, skomplikowanie sieci dróg oraz intensywność ruchu samochodowego ma bezpośrednio wpływ na ryzyko zajścia sytuacji kolizyjnych w ruhu drogowym.
 ```{r}
-m13 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+CAR_TYPE+REVOKED+URBANICITY, data = dane_uczacy, family = binomial)
+m13 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+REVOKED+URBANICITY, data = dane_uczacy, family = binomial)
 summary(m13)
 ```
 ```{r}
 summary(m11)$aic - summary(m13)$aic
-
 ```
 **Wniosek**
-Zmienna charakteryzująca jednostke osadniczą pozwoli
-Wykorzystanie zmiennej charakteryzującej jednostkę osadniczą pozwoliło uzyskać model, który uzyskał wartość kryterium Akaike o 359 punktów niższą względem najlepszego dotychczasowego modelu.
+Wykorzystanie zmiennej charakteryzującej jednostkę osadniczą pozwoliło uzyskać model, który uzyskał wartość kryterium Akaike o 591.8558 punktów niższą względem najlepszego dotychczas modelu.Parametry strukuralne są istotne. Zmienna zostaje włączona do modelu.
 
 
 ### Model 14 -  typ zatrudnienia
-Zakładamy, że osoby zatrudniony w zawodach wymagających wysokich kompetencji.
+Zakładamy, że osoby zatrudnione w zawodach wymagających wysokich kompetencji rzadziej biorą udział w kolizjach drogowych.
 ```{r}
-m14 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+CAR_TYPE+REVOKED+OCCUPATION_GRP, data = dane_uczacy, family = binomial)
+m14 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+REVOKED+URBANICITY+OCCUPATION_GRP, data = dane_uczacy, family = binomial)
 summary(m14)
 ```
 
 ```{r}
 summary(m13)$aic - summary(m14)$aic
 ```
-**Wniosek**
-Zmienna pogarsza nasz model itd, jutro skoncze.
+**Wniosek: **Zmienna nie poprawia znacząco naszego modelu (o 3.51 punkta AIC).
 
-### Model 15 -  typ zatrudnienia
+### Model 15 -  Liczba dzieci klienta mogących prowadzić samochód
 ```{r}
-m15 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+CAR_TYPE+REVOKED+KIDSDRIV, data = dane_uczacy, family = binomial)
+m15 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+REVOKED+KIDSDRIV, data = dane_uczacy, family = binomial)
 summary(m15)
 ```
 
@@ -368,12 +358,12 @@ summary(m15)
 summary(m13)$aic - summary(m15)$aic
 ```
 **Wniosek**
-Zmienna pogarsza nasz model itd, jutro skoncze.
+Zmienna pogarsza nasz model o 535.83 punktów kryterium informacyjnego AIC. Liczba dzieci klienta, mogących prowadzić samochód nie poprawia naszego modelu, mimo iż wstępna analiza wykazała wpływ tej cechy na ryzyko wystąpienia kolizji.
 
 
-### Model 16 -  liczba dzieci
+### Model 16 -  liczba dzieci w domu klienta
 ```{r}
-m16 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+CAR_TYPE+REVOKED+HOMEKIDS, data = dane_uczacy, family = binomial)
+m16 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+REVOKED+HOMEKIDS, data = dane_uczacy, family = binomial)
 summary(m16)
 ```
 
@@ -381,15 +371,8 @@ summary(m16)
 summary(m13)$aic - summary(m16)$aic
 ```
 **Wniosek**
-Zmienna pogarsza nasz model itd, jutro skoncze.
+Zmienna liczby dzieci znacznie zwiększa wartość kryterium informacyjnego. Liczba dzieci nie poprawia jakości naszego modelu, zwłaszcza w przypadku jeżeli w rodzinie jest więcej niż 3 dzieci.
 
-
-
-# Najlepszy - najgorszy
-```{r}
-summary(m1)$aic - summary(m13)$aic
-
-```
 
 ### Interakcje
 Następnie najlepszy model zostanie uzupełniony o zweryfikowane interakcje zachodzące pomiędzy zmiennymi.
@@ -398,10 +381,17 @@ Do tego celu zostanie wykorzystany wspólczynnik podpicia wariancji - VIF. <br/>
 **VIF=1**: brak współliniowości predyktorów. <br/>
 **1<VIF<10**: występuje nieznaczna współliniowość predyktorów, warto rozważyć zmianę modelu. <br/>
 **VIF>10**: występuje silna współliniowość predyktorów, należy usunąć z modelu zmienną. <br/>
+</br>
+Metoda  w iteracyjnym przeszukiwanu par zmiennych do interakcji pomija przypadki występowania błędów: <br/>
+-wspołliniowości <br/>
+-błędów optymalizacji metody największej wiarygodności <br/>
 
+W rezultacie metoda zapisuje najlepsze kombinacje zmiennych tworzących interakcje.<br/>
+Pary zmiennych tworzące interakcje zostały dodane do najlepszego dotychczasowego modelu-m13.
 ```{r}
-#cols <- as.vector(colnames(dane[,-c(26,23)]))
+
 cols <- as.vector(colnames(dane)[6:length(colnames(dane))])
+
 df <- data.frame(matrix(ncol = 5, nrow = 0))
 colnames(df) <- c("zmienna_a", "zmienna_b", "Wald_p_v",'Akaike', 'VIF')
 
@@ -418,22 +408,23 @@ for (i in cols[1:length(cols)]){
                  data = dane_uczacy, family = binomial),
           error = function(w) { skip_to_next <<- TRUE})
         if(skip_to_next) { next }
-        
         ## w pelni skorelowane zmienne przechwytywane
         skip_to_next <- FALSE
         tryCatch(vif_t <- as.numeric(vif(m)[11]),error = function(e) { skip_to_next <<- TRUE})
         if(skip_to_next) { next }
-
         if ((!is.numeric(vif_t)) | (is.na(vif_t))) { next }
-
         if (vif_t <= 1.5){
           skip_to_next <- FALSE
           tryCatch(w_test <- waldtest(m), error = function(e) { skip_to_next <<- TRUE})
           if(skip_to_next) { next }
           
           if (w_test$`Pr(>F)`[2] < 0.05){
-            print(paste('istotna',i,j ,'pvalue:', format(w_test$`Pr(>F)`[2],  scientific = TRUE))[1])  
-            df[nrow(df) + 1,] = c(i, j, w_test$`Pr(>F)`[2], m$aic, vif_t)
+            #print(paste('istotna',i, j ,'pvalue:', format(w_test$`Pr(>F)`[2],  scientific = TRUE))[1])  
+            w_t <- as.numeric(w_test$`Pr(>F)`[2])
+            akaike <- as.numeric(m$aic)
+            
+            df[nrow(df) + 1,] = c(i, j, w_t, akaike, as.numeric(vif_t))
+
           }else{next}
      } else{next}
     }else{next}
@@ -441,21 +432,42 @@ for (i in cols[1:length(cols)]){
  }
 }
 
-
 ```
 ```{r}
-df
-```
-### Ocena 
-```{r}
+df <- na.omit(df)
+# przekonwertowanie zmienych w notacji naukowej na wartosci liczbowe
+df$Wald_p_v <- as.numeric(df$Wald_p_v)
+df$Akaike <- as.numeric(df$Akaike)
+df$VIF <- as.numeric(df$VIF)
 
+# Na podstawie posortowanej tabeli możemy odczytać najlepsze modele z interakcjami.
+df[order(df$VIF, df$Akaike), ]
+```
+### Finalny model z interakcją (model 17)
+W sykrypcie automatycznej selekcji najlepszego modelu z interakcją zidentyfikowaliśmy najlepszą kombinację predyktorów tworzących interakcję.
+```{r}
+m17 <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+REVOKED+URBANICITY+TRAVTIME:MVR_PTS, data = dane_uczacy, family = binomial)
+summary(m17)
+```
+```{r}
+summary(m13)$aic - summary(m17)$aic
+```
+**Wniosek:** Zastosowanie wybranej najlepszej interakcji umożliwił na obniżenie wartości kryterium Akaike o 163.488 punktów.
+
+# Porównanie modeli najlepszy - najgorszy
+```{r}
+summary(m1)$aic - summary(m17)$aic
+```
+**Wniosek - ** W zastosowanym scenariuszu budowania modelu udało się obniżyc wartość kryterium Akaike o 1417.793 w stosunku do modelu podstawowego z jednym predyktorem - dochód.
+
+### Ewaluacja modeli
+```{r}
 report <- data.frame(matrix(ncol = 4, nrow = 0))
 colnames(report) <- c('model','kryterium_AIC', 'McFadden_R2', 'Cragg_Uhler_R2')
 
-for (i in seq(1, 14, 1)){
+for (i in seq(1, 17, 1)){
   mname <- paste('m', i, sep="")
   model = eval(parse(text = mname))
-  
   kryterium_AIC <- c(model$aic)
   McFadden<-pR2(model)[4]
   Cragg_Uhler<-pR2(model)[6]
@@ -465,10 +477,11 @@ for (i in seq(1, 14, 1)){
 ## Raport zbiorczy dla wszystkim wariantów modeli
 report[order(report$kryterium_AIC),]
 ```
-### Test i ewaluacja finalnego modelu na danych 
+**Wniosek: ** Zgodnie z założeniem, model nr 17 okazał się najlepszym modelem i zostanie ewaluowany w kolejnych krokach.
 
+### Test i ewaluacja finalnego modelu na danych 
 ```{r}
-pred <- predict(m13, dane_testowy)
+pred <- predict(m17, dane_testowy)
 
 pred_y <- as.numeric(pred > 0 )
 true_y <- as.numeric(dane_testowy$CLAIM_FLAG)-1
@@ -481,7 +494,6 @@ true_neg <- (true_y == 0) & (pred_y == 0)
 false_pos <- (true_y == 0) & (pred_y == 1)
 #wskazania fałszywie negatywne
 false_neg <- (true_y==1)&(pred_y==0)
-
 ```
 
 ### Macierz pomyłek
@@ -492,37 +504,42 @@ Macierz pomyłek jest kwadratową macierzą w której zliczywane są wyniki prze
 - fałszywie negatywna </br>
 ```{r}
 conf_mat <- matrix(c(sum(true_pos), sum(false_pos),
-                   sum(false_neg), sum(true_neg)), 2, 2)
+                    sum(false_neg), sum(true_neg)), 2, 2)
 
 colnames(conf_mat) <-c('yhat = 1', 'yhat = 0')
 rownames(conf_mat) <- c('y = 1', 'y = 0')
 
 fourfoldplot(conf_mat, color = c("#CC6666", "#99CC99"),conf.level = 0, margin = 1, main = "Macierz pomyłek")
 ```
+<br/>
+Model ma tendencję do popełniania błędów fałszywie pozytywnych co oznacza, że model jest nadmiernie czuły na klase negatywną.
 
 ### Miary na bazie macierzy pomyłek
-**dokładność** - iloraz sumy poprawnie sklasyfikowanych próbek przez sum wszystkich próbek. <br/>
-**błąd** - iloraz sumy niepoprawnie sklasyfikowanych próbek przez sumę wszystkich**
-**precyzja** - 
+**dokładność -** - iloraz sumy poprawnie sklasyfikowanych próbek przez sum wszystkich próbek. $\frac{TP+PN}{N}$<br/>
+**błąd -** iloraz sumy niepoprawnie sklasyfikowanych próbek przez sumę wszystkich $\frac{FP+FN}{N}$</br>
+**czułość - **zdolność modelu do wychwytywania przypadków pozytywnych $\frac{PP}{PP+FN}$<br/>
+**swoistość - ** zdolność modelu do wychwytywania przypadków negatywnych $\frac{PN}{FP+PN}$<br/>
+**PPV -** Wartość predykcyjną dodatnią opisuje zależność między liczbą wyników prawdziwie dodatnich (PP), a ogólną liczbą wyników dodatnich: prawdziwie dodatnich (PP) i fałszywie dodatnich (FP) $\frac{PP}{PP+FP}$ <br/>
+**NPV - **Wartość predykcyjną ujemną opisuje zależność między liczbą wyników prawdziwie ujemnych (PN), a ogólną liczbą wyników ujemnych: prawdziwie ujemnych (PN) i fałszywie ujemnych (FN) $\frac{PN}{PN+FN}$: -
 
-**
 ```{r}
 accuracy <- (sum(true_pos) + sum(true_neg)) / (length(pred))
 
 error <- (conf_mat[1, 2] + conf_mat[2,1]) / (length(pred))
 
-precision <- conf_mat[1, 1] / sum(conf_mat[,1])
+recall <- conf_mat[1, 1] / (conf_mat[1,1]+ conf_mat[2,1])
 
-specifity <- conf_mat[1, 1] / sum(conf_mat[,1])
+specifity <- conf_mat[2, 2] / (conf_mat[1,2]+ conf_mat[2,2])
 
 ppv <- 100*conf_mat[1,1]/(conf_mat[1,1]+ conf_mat[1,2])
 npv <- 100*conf_mat[2,2]/(conf_mat[2,1]+ conf_mat[2,2])
 
 df <- data.frame(matrix(ncol = 6, nrow = 0))
 colnames(df) <- c('błąd', "dokładność", "czułość", 'specyficzność', 'PPV', 'NPV')
-df[1,] = c(error, accuracy, precision, specifity,ppv,npv)
-df
+df[1,] = c(error, accuracy, recall, specifity, ppv,npv)
+round(df,3)
 ```
+**Wniosek**Decyzyjność modelu wskazuje na wyższą czułość w zakresie klasy negatywnej. Wynika to również z faktu, że jest liczniejsza. Całościowo model osiagnął skuteczność na poziomie 77.1%.
 
 ### Krzywa ROC - Krzywa charakterystyki roboczej odbiornika
 Krzywa rok pozwala zwizualizować skutecznośc klasyfikatora w oparciu o odsetek wskazań fałszywie pozytywnych oraz prawdziwie pozytywnych, wyliczanych poprzez przesunięcie progu decyzyjnego modelu regresji logistycznej(w tym przypadku).Przekątną krzywej rok możemy interpretować jako losowe zgadywanie klasyfikatora a skuteczność modeli klasyfikujących poniżej tej przekątnej jest uznawana za gorszą od zgadywania.
@@ -538,13 +555,80 @@ ggplot(roc_df, aes(x=specifity, y=recall)) +
   geom_line(color='blue') +
   scale_x_reverse(expand = c(0, 0))+
   scale_y_continuous(expand=c(0,0))+
-  geom_line(data=data.frame(x=(0:100)/100), aes(x=x, y=1-x),linetype='dotted',color='red')
-
+  geom_line(data=data.frame(x=(0:100)/100), 
+            aes(x=x, y=1-x),
+            linetype='dotted',
+            color='red')
 ```
 ### AUC - Area Under Curve
 Na podstawie krzywej ROC możemy obliczyć miarę wyrażającą skuteczność klasyfikatora.
 W przypadku 'idealnego' modelu wartość AUC wynosiłaby 1. W przypadku modelu całkowicie losowego, wartość ta wyniesie 0.5.
 ```{r}
+
 sum(roc_df$recall[-1] * diff(1 - roc_df$specifity))
 ```
+**Wniosek**: Wartość AUC pozwala stwierdzić, że udało się uzyskać klasyfikator na akceptowalnym poziomie.
 
+### Bootstrap
+Metoda ewaluacji modelu poprzez wielokrotne losowanie w zbiorze ze zwracaniem.
+Całościowy zbiór jest iteracyjnie dzielony na 100 różnych kombinacji jednostek i ponownie trenowany oraz testowany.
+Finalnie rozkład ocen modelu zostaje oceniony z 95% przedziałem ufności.
+
+```{r}
+AUC_mf <-c()
+set.seed(NULL)
+for (i in seq(1,1500,1)){
+
+  n <- nrow(dane)
+  liczby_losowe <- sample(c(1:n), round(0.7*n), replace = FALSE)
+  
+  dane_uczacy <- dane[liczby_losowe,]
+  dane_testowy <- dane[-liczby_losowe,]
+  
+  mf <- glm(CLAIM_FLAG~INCOME+PARENT1+AGE_tr+HOME_VAL_D+CAR_USE+BLUEBOOK+TIF+REVOKED+URBANICITY+TRAVTIME:MVR_PTS,
+             data = dane_uczacy, family = binomial)
+
+  pred <- predict(mf, dane_testowy)
+  
+  pred_y <- as.numeric(pred > 0.0 )
+  true_y <- as.numeric(dane_testowy$CLAIM_FLAG)-1
+
+  idx <- order(-pred)
+  recall <- cumsum(true_y[idx]==1)/sum(true_y == 1)
+  specifity <- (sum(true_y == 0 ) - cumsum(true_y[idx] == 0)) / sum(true_y == 0)
+  roc_df <- data.frame(recall = recall, specifity=specifity)
+
+  AUC <- sum(roc_df$recall[-1] * diff(1 - roc_df$specifity))
+  AUC_mf <- append(AUC_mf, AUC)
+}
+
+beta = 0.95
+p = ((1.0-beta)/2.0)
+lower <- max(0.0, quantile(unlist(AUC_mf), p))
+
+p = (beta+ ((1.0-beta)/2.0))
+upper = min(1.0, quantile(unlist(AUC_mf), p))
+
+AUC_mf <- as.data.frame(AUC_mf)
+
+##plot
+ggplot(AUC_mf, aes(AUC_mf)) + 
+ geom_histogram(bins=15,colour="black", fill="white")+
+
+  geom_vline(aes(xintercept=mean(unlist(AUC_mf))),
+            color="blue", linetype="dashed", size=1) + 
+
+  geom_vline(aes(xintercept=lower),
+            color="blue", linetype="dashed", size=1) +
+
+  geom_vline(aes(xintercept=upper),
+            color="blue", linetype="dashed", size=1)
+
+
+
+```
+```{r}
+print(paste(beta*100,'% przedział ufności miary AUC:', 
+            round(lower*100,2), 'and', round(upper*100,2), 'ze średnią AUC:',round(mean(unlist(AUC_mf)),2)))
+
+```
